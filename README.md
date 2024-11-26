@@ -50,5 +50,10 @@
 - **View Frontend at http://127.0.0.1:3000**
 
 ## Run unit tests
-- docker-compose build tests
-- docker-compose up tests
+### Run backend tests
+- docker-compose build backend-tests
+- docker-compose up backend-tests
+
+### Run frontend tests
+- docker-compose build frontend-tests
+- docker-compose up frontend-tests

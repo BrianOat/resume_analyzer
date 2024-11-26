@@ -22,8 +22,8 @@ services:
       - "127.0.0.1:3000:3000"
     expose:
       - 3000
-      
-  tests:
+
+  backend-tests:
     profiles:
       - test
     env_file:
@@ -31,3 +31,12 @@ services:
     build:
       context: ./backend
       dockerfile: tests/dockerfile
+
+  frontend-tests:
+    profiles:
+      - test
+    env_file:
+      - .env
+    build:
+      context: ./frontend/
+      dockerfile: src/tests/dockerfile
