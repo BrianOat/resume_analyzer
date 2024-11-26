@@ -1,0 +1,23 @@
+# Pull official base image
+FROM node:16
+
+# Set working directory
+WORKDIR /app
+
+# Add `/app/node_modules/.bin` to $PATH
+ENV PATH /app/node_modules/.bin:$PATH
+
+# Copy only the files needed to install dependencies
+COPY package.json ./ 
+COPY package-lock.json ./
+
+# Install test dependencies (jest, testing-library, etc.)
+RUN npm install --silent --save-dev jest @testing-library/react @testing-library/jest-dom@^4.2.4 \
+    @types/testing-library__jest-dom @jest/globals @testing-library/user-event \
+    @types/jest@28 babel-preset-react-app @babel/plugin-proposal-private-property-in-object
+
+# Copy all application files
+COPY . /app/
+
+# Command to run unit tests
+CMD ["npm", "run", "test"]
