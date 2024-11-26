@@ -1,0 +1,44 @@
+/* General Container Styling */
+.dashboard-container {
+    min-height: 100vh;
+    background-color: #f3f4f6; /* Equivalent to Tailwind's bg-gray-100 */
+    padding: 24px; /* Equivalent to Tailwind's p-6 */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  /* Grid Layout for desktop and large screens */
+  .dashboard-grid {
+    flex-grow: 1;
+    max-width: 1280px; /* Equivalent to Tailwind's max-w-7xl */
+    margin: 0 auto; /* Equivalent to Tailwind's mx-auto */
+    display: grid;
+    grid-template-columns: 2fr 1fr; /* 2/3 for the left side, 1/3 for the right side */
+    gap: 24px; /* Equivalent to Tailwind's gap-6 */
+  }
+  
+  /* Left Side - PDF Viewer */
+  .dashboard-pdf-viewer {
+    background-color: white;
+    border-radius: 8px; /* Equivalent to Tailwind's rounded-lg */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to Tailwind's shadow-md */
+    overflow: hidden;
+  }
+  
+  /* Right Side - Analysis Results */
+  .dashboard-analysis-results {
+    background-color: white;
+    border-radius: 8px; /* Equivalent to Tailwind's rounded-lg */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to Tailwind's shadow-md */
+    padding: 24px; /* Equivalent to Tailwind's p-6 */
+    display: flex;
+    flex-direction: column;
+    gap: 24px; /* Equivalent to Tailwind's space-y-6 */
+  }
+  
+  /* Header Styling */
+  .dashboard-header {
+    font-size: 1.5rem; /* Equivalent to Tailwind's text-2xl */
+    font-weight: 700; /* Equivalent to Tailwind's font-bold */
+  }
+  

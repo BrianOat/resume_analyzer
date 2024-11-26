@@ -1,0 +1,27 @@
+/* Container styling */
+.improvement-suggestions-container {
+  background-color: white;
+  padding: 16px; /* Equivalent to p-4 in Tailwind */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to shadow */
+  border-radius: 8px; /* Equivalent to rounded */
+}
+
+/* Title styling */
+.improvement-suggestions-title {
+  font-size: 1.25rem; /* Equivalent to text-xl */
+  font-weight: 600; /* Equivalent to font-semibold */
+  margin-bottom: 16px; /* Equivalent to mb-4 */
+}
+
+/* List styling */
+.improvement-suggestions-list {
+  list-style-type: disc; /* Equivalent to list-disc */
+  padding-left: 20px; /* Equivalent to pl-5 */
+  margin: 0;
+}
+
+/* Individual list items */
+.improvement-suggestions-item {
+  color: #4a5568; /* Equivalent to text-gray-700 */
+  margin-bottom: 8px; /* Equivalent to space-y-2 */
+}

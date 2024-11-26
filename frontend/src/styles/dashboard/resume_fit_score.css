@@ -1,0 +1,28 @@
+/* Container styling */
+.resume-fit-score-container {
+    background-color: white;
+    padding: 16px; /* Equivalent to p-4 */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to shadow */
+    border-radius: 8px; /* Equivalent to rounded */
+  }
+  
+  /* Title styling */
+  .resume-fit-score-title {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+    font-weight: 600; /* Equivalent to font-semibold */
+    margin-bottom: 16px; /* Equivalent to mb-4 */
+  }
+  
+  /* Content layout */
+  .resume-fit-score-content {
+    display: flex; /* Equivalent to flex */
+    align-items: center; /* Equivalent to items-center */
+    gap: 16px; /* Equivalent to space-x-4 */
+  }
+  
+  /* Percentage text */
+  .resume-fit-score-percentage {
+    font-size: 1.125rem; /* Equivalent to text-lg */
+    font-weight: 500; /* Equivalent to font-medium */
+  }
+  

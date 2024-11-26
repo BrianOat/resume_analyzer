@@ -1,0 +1,32 @@
+/* Container styling */
+.skills-matched-container {
+    background-color: white; /* Equivalent to bg-white */
+    padding: 16px; /* Equivalent to p-4 */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to shadow */
+    border-radius: 8px; /* Equivalent to rounded */
+  }
+  
+  /* Title styling */
+  .skills-matched-title {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+    font-weight: 600; /* Equivalent to font-semibold */
+    margin-bottom: 16px; /* Equivalent to mb-4 */
+  }
+  
+  /* List styling */
+  .skills-matched-list {
+    list-style-type: disc; /* Equivalent to list-disc */
+    padding-left: 20px; /* Equivalent to pl-5 */
+    margin: 0; /* Reset default margin */
+  }
+  
+  /* List item styling */
+  .skills-matched-item {
+    margin-bottom: 8px; /* Equivalent to space-y-2 */
+    color: #4a5568; /* Equivalent to text-gray-700 */
+  }
+  
+  .skills-matched-item:last-child {
+    margin-bottom: 0; /* Ensure no margin on last item */
+  }
+  

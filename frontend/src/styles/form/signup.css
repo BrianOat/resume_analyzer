@@ -1,0 +1,24 @@
+/* Specific styles for the signup page */
+.signup-wrapper h2 {
+    color: #6f42c1;
+  }
+  
+.signup-wrapper button {
+  background-color: #17a2b8;
+}
+
+.signup-wrapper button:hover {
+  background-color: #138496;
+}
+
+.password-strength.weak {
+  color: red;
+}
+
+.password-strength.moderate {
+  color: orange;
+}
+
+.password-strength.strong {
+  color: green;
+}

@@ -1,0 +1,24 @@
+/* Container styling */
+.resume-view-container {
+    height: 100%; /* Full height */
+    width: 100%; /* Full width */
+    border: 1px solid #e5e7eb; /* Equivalent to a light border */
+    background-color: white; /* Equivalent to bg-white */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to shadow-md */
+    border-radius: 8px; /* Equivalent to rounded */
+  }
+  
+  /* Title styling */
+  .resume-view-title {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+    font-weight: 600; /* Equivalent to font-semibold */
+    padding: 16px; /* Equivalent to p-4 */
+    border-bottom: 1px solid #e5e7eb; /* Equivalent to border-b */
+  }
+  
+  /* Content area */
+  .resume-view-content {
+    height: calc(100% - 4rem); /* Calculate height for remaining space after title */
+    overflow: hidden; /* Prevent overflow */
+  }
+  

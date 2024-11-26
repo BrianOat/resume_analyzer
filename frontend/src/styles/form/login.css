@@ -1,0 +1,12 @@
+/* Specific styles for the login page */
+.login-wrapper h2 {
+    color: #007bff;
+  }
+  
+.login-wrapper button {
+  background-color: #28a745;
+}
+
+.login-wrapper button:hover {
+  background-color: #218838;
+}
