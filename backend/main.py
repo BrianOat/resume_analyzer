@@ -189,3 +189,17 @@ def extract_text_from_pdf(file):
         return " ".join(text.split())  # Remove extraneous whitespace
     except Exception as e:
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+
+import openai
+openai.api_key = os.getenv('gpt_key')
+def test():
+  # Define the model and input
+  response = openai.chat.completions.create(
+    model= "gpt-4o-mini",
+    messages= [{ "role": "user", "content": "Say this is a test" }]
+  )
+
+  # Print the response
+  print(response)
+
+test()
