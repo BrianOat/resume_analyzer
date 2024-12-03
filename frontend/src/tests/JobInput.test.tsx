@@ -20,7 +20,7 @@ describe("JobInput Component", () => {
   });
 
   test("renders the component with label, textarea, character counter, and submit button", () => {
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     expect(screen.getByText("Job Description")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("Enter the job description here...")).toBeInTheDocument();
@@ -29,7 +29,7 @@ describe("JobInput Component", () => {
   });
 
   test("updates textarea value on typing", () => {
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     const textarea = screen.getByPlaceholderText("Enter the job description here...");
 
@@ -39,7 +39,7 @@ describe("JobInput Component", () => {
   });
 
   test("updates character counter as text is typed", () => {
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     const textarea = screen.getByPlaceholderText("Enter the job description here...");
     const charCounter = screen.getByText("0 / 5000 characters");
@@ -50,7 +50,7 @@ describe("JobInput Component", () => {
   });
 
   test("applies 'char-counter-exceeded' class when text length exceeds 5000", () => {
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     const textarea = screen.getByPlaceholderText("Enter the job description here...");
 
@@ -70,7 +70,7 @@ describe("JobInput Component", () => {
 
     (axios.post as jest.Mock).mockResolvedValueOnce(mockResponse);
 
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     const textarea = screen.getByPlaceholderText("Enter the job description here...");
     const submitButton = screen.getByRole("button", { name: "Submit" });
@@ -93,7 +93,7 @@ describe("JobInput Component", () => {
 
     (axios.post as jest.Mock).mockRejectedValueOnce(mockError);
 
-    render(<JobInput label="Job Description" />);
+    render(<JobInput label="Job Description" softLimit={0} hardLimit={5000}/>);
 
     const textarea = screen.getByPlaceholderText("Enter the job description here...");
     const submitButton = screen.getByRole("button", { name: "Submit" });
