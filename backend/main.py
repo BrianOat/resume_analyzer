@@ -7,9 +7,10 @@ import jwt
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from database import models
-from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload
+from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, AnalysisPayload
 from PyPDF2 import PdfReader
 import uuid
+import openai
 
 resume_file_content = io.BytesIO()
 
@@ -170,7 +171,81 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         }
     except Exception as e: 
       return {"error": str(e)}
+    
+@app.post("/api/analyze")
+async def analyze_text(payload: AnalysisPayload, response: Response):
+  """
+    Send uploaded resume and job description to NLP API.
+    
+    Args:
+      payload (AnalysisPayload): The payload containing resume text, job description
+      response (Response): The FastAPI Response object for setting the status code
 
+    Returns:
+      dict: A JSON response with fit score and feedback if succesful otherwise an error status message.
+  """
+  
+  try:
+    openai.api_key = os.getenv('gpt_key')
+
+    resume_text = payload.resume_text.strip()
+    job_description = payload.job_description.strip()
+    max_char_count = 5000
+
+    #Validate payload
+    #Check to see if payload is empty
+    if not resume_text:
+      response.status_code = status.HTTP_400_BAD_REQUEST
+      return {
+          "error": "Resume text is empty.",
+          "status": "error"
+      }
+    if not job_description:
+      response.status_code = status.HTTP_400_BAD_REQUEST
+      return {
+          "error": "Job description is empty.",
+          "status": "error"
+      }
+    
+    #Check to see if payload exceeds max character length
+    if (len(resume_text) > max_char_count):
+      response.status_code = status.HTTP_400_BAD_REQUEST
+      return {
+          "error": "Resume text exceeds character limit.",
+          "status": "error"
+      }
+    if (len(job_description) > max_char_count):
+      response.status_code = status.HTTP_400_BAD_REQUEST
+      return {
+          "error": "Job description exceeds character limit.",
+          "status": "error"
+      }
+    
+    #Construct prompt for NLP API call:
+    prompt = (
+            "You are a career coach. Based on the given resume and job description, "
+            "evaluate the fit and provide specific feedback for improvement.\n\n"
+            f"Resume:\n{resume_text}\n\n"
+            f"Job Description:\n{job_description}\n\n"
+            "Provide:\n1. A fit score (0-100).\n"
+            "2. Feedback on how the resume can be improved to better fit the job description in a list format."
+        )
+    #Making a request to OpenAI API
+    analysis = openai.chat.completions.create(
+       model= "gpt-4o-mini",
+       messages= [{"role": "user", "content": prompt}]
+    )
+    response.status_code = status.HTTP_200_OK
+    return analysis
+  except openai.error.OpenAIError as e:
+     #catch openAI API errors
+     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+     return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+  except Exception as e:
+    #catch other unexpected errors
+    response.status_code = status.HTTP_400_BAD_REQUEST
+    return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
+    
 def extract_text_from_pdf(file):
     """
     Extract text from a PDF file and clean up unnecessary line breaks and whitespace.
@@ -190,16 +265,16 @@ def extract_text_from_pdf(file):
     except Exception as e:
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-import openai
-openai.api_key = os.getenv('gpt_key')
-def test():
-  # Define the model and input
-  response = openai.chat.completions.create(
-    model= "gpt-4o-mini",
-    messages= [{ "role": "user", "content": "Say this is a test" }]
-  )
+# import openai
+# openai.api_key = os.getenv('gpt_key')
+# def test():
+#   # Define the model and input
+#   response = openai.chat.completions.create(
+#     model= "gpt-4o-mini",
+#     messages= [{ "role": "user", "content": "Say this is a test" }]
+#   )
 
-  # Print the response
-  print(response)
+#   # Print the response
+#   print(response)
 
-test()
+# test()
