@@ -11,6 +11,7 @@ from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, An
 from PyPDF2 import PdfReader
 import uuid
 import openai
+from pydantic import BaseModel, ValidationError
 
 resume_file_content = io.BytesIO()
 
@@ -36,6 +37,32 @@ def get_db():
         yield db
     finally:
         db.close()
+
+class InputData(BaseModel):
+    resume_text: str
+    job_description: str
+    @staticmethod
+    def validate_length(data):
+        if len(data) > 10000:
+            raise ValueError("Input has to be less than 10,000 characters.")
+        return data
+    @staticmethod
+    def is_valid(data):
+        return isinstance(data, str) and len(data.strip()) > 0
+
+class OutputData(BaseModel):
+    fit_score: int 
+    feedback: list[str]
+    @staticmethod
+    def validate_output(data):
+        if not(0 <= data["fit_score"] <= 100):
+            raise ValueError("fit score has to be between 0 and 100.")
+        if not isinstance(data["feedback"], list) or not all(isinstance(item, str) for item in data["feedback"]):
+            raise ValueError("feedback has to be a list of strings.")
+        return data
+
+class ErrorResponse(BaseModel):
+    error: str
 
 @app.get("/")
 async def root():
