@@ -7,7 +7,7 @@ import jwt
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from database import models
-from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, AnalysisPayload, InputData, OutputData
+from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
 import openai
@@ -191,36 +191,6 @@ async def analyze_text(payload: InputData, response: Response):
 
     resume_text = payload.resume_text.strip()
     job_description = payload.job_description.strip()
-    max_char_count = 5000
-
-    #Validate payload
-    #Check to see if payload is empty
-    if not resume_text:
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Resume text is empty.",
-          "status": "error"
-      }
-    if not job_description:
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Job description is empty.",
-          "status": "error"
-      }
-    
-    #Check to see if payload exceeds max character length
-    if (len(resume_text) > max_char_count):
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Resume text exceeds character limit.",
-          "status": "error"
-      }
-    if (len(job_description) > max_char_count):
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Job description exceeds character limit.",
-          "status": "error"
-      }
     
     #Construct prompt for NLP API call:
     prompt = (
@@ -229,19 +199,23 @@ async def analyze_text(payload: InputData, response: Response):
             f"Resume:\n{resume_text}\n\n"
             f"Job Description:\n{job_description}\n\n"
             "Provide:\n1. A fit score (0-100).\n"
-            "2. Feedback on how the resume can be improved to better fit the job description in a list format."
+            "2. Feedback on how the resume can be improved to better fit the job description in a concise list of strings."
         )
     #Making a request to OpenAI API
     analysis = openai.chat.completions.create(
-       model= "gpt-4o-mini",
-       messages= [{"role": "user", "content": prompt}]
+      model= "gpt-4o-mini",
+      messages= [{"role": "user", "content": prompt}]
     )
     response.status_code = status.HTTP_200_OK
-    return analysis
+    return OutputData(analysis)
   except openai.error.OpenAIError as e:
-     #catch openAI API errors
-     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-     return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+    #catch openAI API errors
+    response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+  except ValueError as e:
+    #catch validation errors from standardized input/output data structures
+    response.status_code = status.HTTP_400_BAD_REQUEST
+    return {"error": f"Validation error with input. Please try again. {str(e)}", "status": "error"}
   except Exception as e:
     #catch other unexpected errors
     response.status_code = status.HTTP_400_BAD_REQUEST
@@ -265,17 +239,3 @@ def extract_text_from_pdf(file):
         return " ".join(text.split())  # Remove extraneous whitespace
     except Exception as e:
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
-
-# import openai
-# openai.api_key = os.getenv('gpt_key')
-# def test():
-#   # Define the model and input
-#   response = openai.chat.completions.create(
-#     model= "gpt-4o-mini",
-#     messages= [{ "role": "user", "content": "Say this is a test" }]
-#   )
-
-#   # Print the response
-#   print(response)
-
-# test()

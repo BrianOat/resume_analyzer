@@ -13,17 +13,13 @@ class LoginPayload(BaseUserPayload):
 class JobDescriptionPayload(BaseModel):
    job_description: str
 
-class AnalysisPayload(BaseModel):
-    resume_text: str = Field(..., max_length=5000, description="Text of uploaded resume")
-    job_description: str = Field(..., max_length=5000, description="Job description of desired position")
-
 class InputData(BaseModel):
     resume_text: str
     job_description: str
     @staticmethod
     def validate_length(data):
         if len(data) > 10000:
-            raise ValueError("Input has to be less than 10,000 characters.")
+            raise ValueError("Input exceeds 10,000 characters.")
         return data
     @staticmethod
     def is_valid(data):
