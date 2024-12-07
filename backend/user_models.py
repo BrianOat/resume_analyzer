@@ -23,10 +23,10 @@ class InputData(BaseModel):
         return data
     @staticmethod
     def is_valid(data):
-        if isinstance(data, str) and len(data.strip()) > 0:
-            return data
-        else:
+        if not isinstance(data, str) and len(data.strip()) > 0:
             return ValueError("Input must be non-empty strings.")
+        return data
+            
         
 class OutputData(BaseModel):
     fit_score: int 

@@ -11,7 +11,6 @@ from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, In
 from PyPDF2 import PdfReader
 import uuid
 import openai
-from pydantic import BaseModel, ValidationError
 
 resume_file_content = io.BytesIO()
 
@@ -172,7 +171,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         }
     except Exception as e: 
       return {"error": str(e)}
-    
+
 @app.post("/api/analyze")
 async def analyze_text(payload: InputData, response: Response):
   """
@@ -187,12 +186,17 @@ async def analyze_text(payload: InputData, response: Response):
   """
   
   try:
-    openai.api_key = os.getenv('gpt_key')
-
     resume_text = payload.resume_text.strip()
     job_description = payload.job_description.strip()
+
+    #Validating input
+    InputData.is_valid(resume_text)
+    InputData.is_valid(job_description)
+    InputData.validate_length(resume_text)
+    InputData.validate_length(job_description)
     
     #Construct prompt for NLP API call:
+    openai.api_key = os.getenv('gpt_key')
     prompt = (
             "You are a career coach. Based on the given resume and job description, "
             "evaluate the fit and provide specific feedback for improvement.\n\n"
@@ -204,10 +208,37 @@ async def analyze_text(payload: InputData, response: Response):
     #Making a request to OpenAI API
     analysis = openai.chat.completions.create(
       model= "gpt-4o-mini",
-      messages= [{"role": "user", "content": prompt}]
+      messages= [{"role": "user", "content": prompt}], 
+      response_format="json"
     )
+
+    #Extract relevant fields
+    raw_response = analysis['choices'][0]['message']['content']
+
+    #Parse relevant values from raw_response which is in dict format
+    fit_score = raw_response.get('fit_score')
+    feedback = raw_response.get('feedback')
+
+    #Handle malformed/missing fields
+    if not fit_score or not feedback:
+      return ValueError("NLP API response missing fit score and/or feedback fields.")
+    #Convert to fit_score to percentage
+    if fit_score.isInstance(fit_score, float) and fit_score <= 1:
+      fit_score=round(fit_score * 100)
+    
+    #Map parsed data to OutputData
+
+    output = OutputData(
+      fit_score = fit_score,
+      feedback = feedback
+    )
+    
+    #Validate output data
+    OutputData.validate_output(output)
+
     response.status_code = status.HTTP_200_OK
-    return OutputData(analysis)
+    return output
+  
   except openai.error.OpenAIError as e:
     #catch openAI API errors
     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
