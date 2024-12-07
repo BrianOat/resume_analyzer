@@ -7,7 +7,7 @@ import jwt
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from database import models
-from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, AnalysisPayload
+from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, AnalysisPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
 import openai
@@ -174,16 +174,16 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
       return {"error": str(e)}
     
 @app.post("/api/analyze")
-async def analyze_text(payload: AnalysisPayload, response: Response):
+async def analyze_text(payload: InputData, response: Response):
   """
     Send uploaded resume and job description to NLP API.
     
     Args:
-      payload (AnalysisPayload): The payload containing resume text, job description
+      payload (InputData): The payload containing resume text, job description in standardized input data structure
       response (Response): The FastAPI Response object for setting the status code
 
     Returns:
-      dict: A JSON response with fit score and feedback if succesful otherwise an error status message.
+      OutputData: standardized output data structure for fit score and feedback if succesful otherwise an error status message.
   """
   
   try:
