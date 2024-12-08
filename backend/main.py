@@ -11,6 +11,7 @@ from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, An
 from PyPDF2 import PdfReader
 import uuid
 import openai
+from pydantic import BaseModel, ValidationError
 
 resume_file_content = io.BytesIO()
 
