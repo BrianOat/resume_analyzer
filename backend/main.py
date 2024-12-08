@@ -11,6 +11,9 @@ from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, In
 from PyPDF2 import PdfReader
 import uuid
 import openai
+from openai import OpenAI
+#import json
+import re
 
 resume_file_content = io.BytesIO()
 
@@ -208,30 +211,62 @@ async def analyze_text(payload: InputData, response: Response):
     #Making a request to OpenAI API
     analysis = openai.chat.completions.create(
       model= "gpt-4o-mini",
-      messages= [{"role": "user", "content": prompt}], 
-      response_format="json"
+      messages= [{"role": "user", "content": prompt}]
     )
 
     #Extract relevant fields
-    raw_response = analysis['choices'][0]['message']['content']
+    raw_response = analysis.choices[0].message.content
+    # Log raw response for debugging
+    print("Raw response:", raw_response)
 
-    #Parse relevant values from raw_response which is in dict format
-    fit_score = raw_response.get('fit_score')
-    feedback = raw_response.get('feedback')
 
-    #Handle malformed/missing fields
-    if not fit_score or not feedback:
-      return ValueError("NLP API response missing fit score and/or feedback fields.")
-    #Convert to fit_score to percentage
-    if fit_score.isInstance(fit_score, float) and fit_score <= 1:
-      fit_score=round(fit_score * 100)
+    fit_score_regex = r"\*\*Fit Score:\*\* (\d+)"
+    feedback_regex = r"\*\*Feedback for Improvement:\*\*\n((?: - .+\n)+)"
+
+    # Extract Fit Score
+    fit_score_match = re.search(fit_score_regex, raw_response)
+    fit_score = int(fit_score_match.group(1)) if fit_score_match else None
+
+    # Extract Feedback
+    feedback_match = re.search(feedback_regex, raw_response)
+    feedback = [item.strip(" -") for item in feedback_match.group(1).strip().split("\n")] if feedback_match else []
+    # # Parse response using regex
+    # #fit_score_match = re.search(r"\*\*Fit Score:\*\* (\d+)", raw_response)
+    # fit_score_match = re.search(r"\*\*Fit Score:\*\*\s*(\d+)", raw_response)
+    # feedback_match = re.search(r"\*\*Feedback for Improvement:\*\*\n((?: - .+\n?)+)", raw_response)
+
+    # if not fit_score_match or not feedback_match:
+    #   raise ValueError("NLP API response is missing fit score or feedback fields.")
+
+    fit_score = int(fit_score_match.group(1))
+    feedback = [line.strip(" -") for line in feedback_match.group(1).split("\n") if line.strip()]
+    # # Handle empty responses
+    # if not raw_response.strip():
+    #   raise ValueError("NLP API returned an empty response.")
+
+    # # Attempt to parse response as JSON
+    # try:
+    #   parsed_response = json.loads(raw_response)
+    # except json.JSONDecodeError:
+    #   raise ValueError(f"Response is not in JSON format: {raw_response}")
+
+    # #Parse relevant values from raw_response after converting to dict
+    # fit_score = parsed_response.get('fit_score')
+    # feedback = parsed_response.get('feedback')
+
+    # #Handle malformed/missing fields
+    # if not fit_score or not feedback:
+    #   return ValueError("NLP API response missing fit score and/or feedback fields.")
+    # #Convert to fit_score to percentage
+    # if fit_score.isInstance(fit_score, float) and fit_score <= 1:
+    #   fit_score=round(fit_score * 100)
     
     #Map parsed data to OutputData
-
     output = OutputData(
       fit_score = fit_score,
       feedback = feedback
     )
+    print("Output:", output)
     
     #Validate output data
     OutputData.validate_output(output)
@@ -239,7 +274,7 @@ async def analyze_text(payload: InputData, response: Response):
     response.status_code = status.HTTP_200_OK
     return output
   
-  except openai.error.OpenAIError as e:
+  except openai.APIError as e:
     #catch openAI API errors
     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
     return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
