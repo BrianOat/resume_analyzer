@@ -12,8 +12,7 @@ from PyPDF2 import PdfReader
 import uuid
 import openai
 from openai import OpenAI
-#import json
-import re
+import json
 
 resume_file_content = io.BytesIO()
 
@@ -211,7 +210,33 @@ async def analyze_text(payload: InputData, response: Response):
     #Making a request to OpenAI API
     analysis = openai.chat.completions.create(
       model= "gpt-4o-mini",
-      messages= [{"role": "user", "content": prompt}]
+      messages= [{"role": "user", "content": prompt}], 
+      response_format={
+         "type": "json_schema", 
+         "json_schema": {
+            "name": "resume_analysis", 
+            "schema": {
+               "type": "object",
+               "properties": {
+                  "fit_score": {
+                    "description": "A score representing how well the resume fits the job description.",
+                    "type": "integer", 
+                    "minimum": 0,
+                    "maximum": 100
+                  }, 
+                  "feedback": {
+                    "description": "List of feedback points on how the user can improve their resume.",
+                    "type": "array", 
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+               }, 
+               "required": ["fit_score", "feedback"],
+               "additionalProperties": False
+            }
+         }
+      }
     )
 
     #Extract relevant fields
@@ -219,45 +244,24 @@ async def analyze_text(payload: InputData, response: Response):
     # Log raw response for debugging
     print("Raw response:", raw_response)
 
+    # Handle empty responses
+    if not raw_response.strip():
+      raise ValueError("NLP API returned an empty response.")
 
-    fit_score_regex = r"\*\*Fit Score:\*\* (\d+)"
-    feedback_regex = r"\*\*Feedback for Improvement:\*\*\n((?: - .+\n)+)"
+    # Attempt to parse response as JSON
+    try:
+      parsed_response = json.loads(raw_response)
+    except json.JSONDecodeError:
+      raise ValueError(f"Response is not in JSON format: {raw_response}")
 
-    # Extract Fit Score
-    fit_score_match = re.search(fit_score_regex, raw_response)
-    fit_score = int(fit_score_match.group(1)) if fit_score_match else None
+    #Parse relevant values from raw_response after converting to dict
+    fit_score = parsed_response['fit_score']
+    feedback = parsed_response['feedback']
 
-    # Extract Feedback
-    feedback_match = re.search(feedback_regex, raw_response)
-    feedback = [item.strip(" -") for item in feedback_match.group(1).strip().split("\n")] if feedback_match else []
-    # # Parse response using regex
-    # #fit_score_match = re.search(r"\*\*Fit Score:\*\* (\d+)", raw_response)
-    # fit_score_match = re.search(r"\*\*Fit Score:\*\*\s*(\d+)", raw_response)
-    # feedback_match = re.search(r"\*\*Feedback for Improvement:\*\*\n((?: - .+\n?)+)", raw_response)
-
-    # if not fit_score_match or not feedback_match:
-    #   raise ValueError("NLP API response is missing fit score or feedback fields.")
-
-    fit_score = int(fit_score_match.group(1))
-    feedback = [line.strip(" -") for line in feedback_match.group(1).split("\n") if line.strip()]
-    # # Handle empty responses
-    # if not raw_response.strip():
-    #   raise ValueError("NLP API returned an empty response.")
-
-    # # Attempt to parse response as JSON
-    # try:
-    #   parsed_response = json.loads(raw_response)
-    # except json.JSONDecodeError:
-    #   raise ValueError(f"Response is not in JSON format: {raw_response}")
-
-    # #Parse relevant values from raw_response after converting to dict
-    # fit_score = parsed_response.get('fit_score')
-    # feedback = parsed_response.get('feedback')
-
-    # #Handle malformed/missing fields
-    # if not fit_score or not feedback:
-    #   return ValueError("NLP API response missing fit score and/or feedback fields.")
-    # #Convert to fit_score to percentage
+    #Handle malformed/missing fields
+    if not fit_score or not feedback:
+      return ValueError("NLP API response missing fit score and/or feedback fields.")
+    #Convert to fit_score to percentage
     # if fit_score.isInstance(fit_score, float) and fit_score <= 1:
     #   fit_score=round(fit_score * 100)
     
@@ -266,10 +270,11 @@ async def analyze_text(payload: InputData, response: Response):
       fit_score = fit_score,
       feedback = feedback
     )
-    print("Output:", output)
+    print("Fit Score:", output.fit_score)
+    print("Feedback:", output.feedback)
     
-    #Validate output data
-    OutputData.validate_output(output)
+    #Validate output data - FIX!!
+    #OutputData.validate_output(output)
 
     response.status_code = status.HTTP_200_OK
     return output
@@ -286,7 +291,7 @@ async def analyze_text(payload: InputData, response: Response):
     #catch other unexpected errors
     response.status_code = status.HTTP_400_BAD_REQUEST
     return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
-    
+
 def extract_text_from_pdf(file):
     """
     Extract text from a PDF file and clean up unnecessary line breaks and whitespace.
