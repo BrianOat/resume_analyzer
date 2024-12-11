@@ -7,11 +7,12 @@ import jwt
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from database import models
-from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, AnalysisPayload
+from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
 import openai
-from pydantic import BaseModel, ValidationError
+from openai import OpenAI
+import json
 
 resume_file_content = io.BytesIO()
 
@@ -172,81 +173,125 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         }
     except Exception as e: 
       return {"error": str(e)}
-    
+
 @app.post("/api/analyze")
-async def analyze_text(payload: AnalysisPayload, response: Response):
+async def analyze_text(payload: InputData, response: Response):
   """
     Send uploaded resume and job description to NLP API.
     
     Args:
-      payload (AnalysisPayload): The payload containing resume text, job description
+      payload (InputData): The payload containing resume text, job description in standardized input data structure
       response (Response): The FastAPI Response object for setting the status code
 
     Returns:
-      dict: A JSON response with fit score and feedback if succesful otherwise an error status message.
+      OutputData: standardized output data structure for fit score and feedback if succesful otherwise an error status message.
   """
   
   try:
-    openai.api_key = os.getenv('gpt_key')
-
     resume_text = payload.resume_text.strip()
     job_description = payload.job_description.strip()
-    max_char_count = 5000
 
-    #Validate payload
-    #Check to see if payload is empty
-    if not resume_text:
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Resume text is empty.",
-          "status": "error"
-      }
-    if not job_description:
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Job description is empty.",
-          "status": "error"
-      }
-    
-    #Check to see if payload exceeds max character length
-    if (len(resume_text) > max_char_count):
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Resume text exceeds character limit.",
-          "status": "error"
-      }
-    if (len(job_description) > max_char_count):
-      response.status_code = status.HTTP_400_BAD_REQUEST
-      return {
-          "error": "Job description exceeds character limit.",
-          "status": "error"
-      }
+    #Validating input
+    InputData.is_valid(resume_text)
+    InputData.is_valid(job_description)
+    InputData.validate_length(resume_text)
+    InputData.validate_length(job_description)
     
     #Construct prompt for NLP API call:
+    openai.api_key = os.getenv('gpt_key')
     prompt = (
             "You are a career coach. Based on the given resume and job description, "
             "evaluate the fit and provide specific feedback for improvement.\n\n"
             f"Resume:\n{resume_text}\n\n"
             f"Job Description:\n{job_description}\n\n"
             "Provide:\n1. A fit score (0-100).\n"
-            "2. Feedback on how the resume can be improved to better fit the job description in a list format."
+            "2. Feedback on how the resume can be improved to better fit the job description in a concise list of strings."
         )
     #Making a request to OpenAI API
     analysis = openai.chat.completions.create(
-       model= "gpt-4o-mini",
-       messages= [{"role": "user", "content": prompt}]
+      model= "gpt-4o-mini",
+      messages= [{"role": "user", "content": prompt}], 
+      response_format={
+         "type": "json_schema", 
+         "json_schema": {
+            "name": "resume_analysis", 
+            "schema": {
+               "type": "object",
+               "properties": {
+                  "fit_score": {
+                    "description": "A score representing how well the resume fits the job description.",
+                    "type": "integer", 
+                    "minimum": 0,
+                    "maximum": 100
+                  }, 
+                  "feedback": {
+                    "description": "List of feedback points on how the user can improve their resume.",
+                    "type": "array", 
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+               }, 
+               "required": ["fit_score", "feedback"],
+               "additionalProperties": False
+            }
+         }
+      }
     )
+
+    #Extract relevant fields
+    raw_response = analysis.choices[0].message.content
+    # Log raw response for debugging
+    #print("Raw response:", raw_response)
+
+    # Handle empty responses
+    if not raw_response.strip():
+      raise ValueError("NLP API returned an empty response.")
+
+    # Attempt to parse response as JSON
+    try:
+      parsed_response = json.loads(raw_response)
+    except json.JSONDecodeError:
+      raise ValueError(f"Response is not in JSON format: {raw_response}")
+
+    #Parse relevant values from raw_response after converting to dict
+    fit_score = parsed_response['fit_score']
+    feedback = parsed_response['feedback']
+
+    #Handle malformed/missing fields
+    if not fit_score or not feedback:
+      return ValueError("NLP API response missing fit score and/or feedback fields.")
+    #Convert to fit_score to percentage
+    # if fit_score.isInstance(fit_score, float) and fit_score <= 1:
+    #   fit_score=round(fit_score * 100)
+    
+    #Map parsed data to OutputData
+    output = OutputData(
+      fit_score = fit_score,
+      feedback = feedback
+    )
+    #print("Fit Score:", output.fit_score)
+    #print("Feedback:", output.feedback)
+    
+    #Validate output data
+    OutputData.validate_output(output)
+
     response.status_code = status.HTTP_200_OK
-    return analysis
-  except openai.error.OpenAIError as e:
-     #catch openAI API errors
-     response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-     return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+    return output
+  
+  except openai.APIError as e:
+    #catch openAI API errors
+    response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+    return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+  except ValueError as e:
+    #catch validation errors from standardized input/output data structures
+    response.status_code = status.HTTP_400_BAD_REQUEST
+    return {"error": f"Validation error with input. Please try again. {str(e)}", "status": "error"}
   except Exception as e:
     #catch other unexpected errors
     response.status_code = status.HTTP_400_BAD_REQUEST
     return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
-    
+
 def extract_text_from_pdf(file):
     """
     Extract text from a PDF file and clean up unnecessary line breaks and whitespace.
@@ -265,17 +310,3 @@ def extract_text_from_pdf(file):
         return " ".join(text.split())  # Remove extraneous whitespace
     except Exception as e:
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
-
-# import openai
-# openai.api_key = os.getenv('gpt_key')
-# def test():
-#   # Define the model and input
-#   response = openai.chat.completions.create(
-#     model= "gpt-4o-mini",
-#     messages= [{ "role": "user", "content": "Say this is a test" }]
-#   )
-
-#   # Print the response
-#   print(response)
-
-# test()
