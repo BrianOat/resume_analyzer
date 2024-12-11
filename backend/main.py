@@ -242,7 +242,7 @@ async def analyze_text(payload: InputData, response: Response):
     #Extract relevant fields
     raw_response = analysis.choices[0].message.content
     # Log raw response for debugging
-    print("Raw response:", raw_response)
+    #print("Raw response:", raw_response)
 
     # Handle empty responses
     if not raw_response.strip():
@@ -270,11 +270,11 @@ async def analyze_text(payload: InputData, response: Response):
       fit_score = fit_score,
       feedback = feedback
     )
-    print("Fit Score:", output.fit_score)
-    print("Feedback:", output.feedback)
+    #print("Fit Score:", output.fit_score)
+    #print("Feedback:", output.feedback)
     
-    #Validate output data - FIX!!
-    #OutputData.validate_output(output)
+    #Validate output data
+    OutputData.validate_output(output)
 
     response.status_code = status.HTTP_200_OK
     return output
