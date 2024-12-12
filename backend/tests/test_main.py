@@ -149,7 +149,7 @@ def test_fail_resume_upload_oversized_file():
     assert response.json()["status"] == "error"
 
 def test_fail_resume_upload_exceeds_character_limit():
-    long_text = "A" * 5001
+    long_text = "A" * 10001
     long_text_pdf = create_pdf_in_memory(long_text)
     response = client.post(
         "/api/resume-upload",
@@ -173,7 +173,7 @@ def test_sucessful_job_description_upload():
 
 def test_fail_job_description_upload_invalid_length():
     job_description_payload = {
-        "job_description": "A"*5001
+        "job_description": "A"*10001
     }
     response = client.post(
         "/api/job-description",
@@ -182,6 +182,15 @@ def test_fail_job_description_upload_invalid_length():
     assert response.status_code == 400
     assert response.json()["error"] == "Job description exceeds character limit."
     assert response.json()["status"] == "error"
+
+# def test_nlp_analyze_success():
+
+# def test_nlp_analyze_invalid_type():
+
+# def test_nlp_analyze_exceeds_length():
+
+# def test_nlp_analyze_empty():
+
 
 def test_extract_text_from_pdf_success():
     sample_pdf_valid = create_pdf_in_memory("Hello World")
