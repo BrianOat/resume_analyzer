@@ -121,12 +121,12 @@ async def resume_upload(file: UploadFile, response: Response):
     try:
         text = extract_text_from_pdf(io.BytesIO(file_content))
         current_char_count = len(text)
-        if current_char_count > 5000:
+        if current_char_count > 10000:
             response.status_code = status.HTTP_400_BAD_REQUEST
             return {
-                "error": "File contains more than 5,000 characters.",
+                "error": "File contains more than 10,000 characters.",
                 "status": "error",
-                "exceeded_by": current_char_count - 5000
+                "exceeded_by": current_char_count - 10000
             }
         
         #Create a session ID to store data
@@ -149,7 +149,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
     try:
       job_description = payload.job_description
       job_description.strip()
-      max_char_count = 5000
+      max_char_count = 10000
       if len(job_description) <= max_char_count:
         session_id = next(iter(temp_storage), None)
         if session_id:
