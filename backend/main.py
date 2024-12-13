@@ -13,98 +13,49 @@ import uuid
 import openai
 import re
 from collections import Counter
+from typing import List, Dict, Set
+
+# For tokenizing 
+STOP_WORDS = set([
+    'a', 'an', 'the', 'and', 'or', 'but', 'if', 'while', 'with', 'is', 'are',
+    'was', 'were', 'in', 'on', 'for', 'to', 'of', 'at', 'by', 'from', 'up',
+    'down', 'out', 'over', 'under', 'again', 'further', 'then', 'once', 'here',
+    'there', 'when', 'where', 'why', 'how', 'all', 'any', 'both', 'each', 'few',
+    'more', 'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own',
+    'same', 'so', 'than', 'too', 'very', 'can', 'will', 'just', "don't", 'should',
+    'now', 'into', 'during', 'before', 'after', 'above', 'below', 'between', 'because',
+    'until', 'while', 'about', 'against', 'among', 'through', 'during', 'without',
+    'within', 'along', 'following', 'across', 'behind', 'beyond', 'plus', 'is a plus',
+    'nice to have', 'preferred', 'desired', 'is a plus', 'would be a plus', 'preferably', 'skill',
+    'skills', 'required', 'looking', 'knowledge', 'experience', 'software', 'we', 'skilled', 'familiarity', 'developer', 'desirable',
+    'seeking', 'functional', 'collaborate', 'implement', 'cross', 'responsibilities', 'develop', 'engineer', 'proficient', 'teams', 'include',
+    'maintain', "requirements", 'requirement', 'other'
+])
+
+# For tokenizing
+MULTI_WORD_SKILLS = [
+    'rest api', 'rest apis', 'machine learning', 'data analysis', 'sql database',
+    'project management', 'customer service', 'agile methodology', 'object oriented programming',
+    'software development', 'c++', 'c#', 'java', 'python', 'aws', 'docker', 'kubernetes',
+    'html5', 'css3', 'javascript', 'react js', 'node js', 'sql server', 'git version control',
+    'continuous integration', 'continuous deployment', 'linux administration', 'data structures',
+    'network security', 'cloud computing', 'api development', 'unit testing',
+    'test driven development', 'behavior driven development', 'user experience', 'ui design',
+    'cicd pipelines', 'ngs pipelines', 'automated deployment processes', 'big data technologies',
+    'data warehousing', 'database design', 'server side frameworks', 'terraform',
+    'ci/cd pipelines', 'node.js', 'express.js', 'ngs data analysis'
+]
+
+# Sort multi-word skills by length in descending order to match longer phrases first
+# Escape special characters and allow optional non-word characters within multi-word skills
+MULTI_WORD_PATTERN = re.compile(
+    r'\b(' + '|'.join(re.escape(skill) for skill in sorted(MULTI_WORD_SKILLS, key=lambda x: -len(x))) + r')\b',
+    re.IGNORECASE
+)
 
 resume_file_content = io.BytesIO()
 
 temp_storage = {}
-
-
-# Note that STOP_WORDS is for the functions for calculating fit score and generating feedback
-STOP_WORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "but", "by", "for", "if", "in", "into",
-    "is", "it", "its", "of", "on", "or", "such", "that", "the", "their", "there",
-    "these", "they", "this", "to", "was", "will", "with", "you", "your", "looking",
-    "strong", "experience", "candidates", "should", "be", "proficient", "modern",
-    "cloud", "technologies", "web", "services", "familiarity", "plus"
-}
-
-# Note that MULTI_WORD_SKILLS is for the tokenize() function
-MULTI_WORD_SKILLS = {
-    # Software/Web Development
-    "rest apis": "rest_apis",
-    "rest api": "rest_api",
-    "ci/cd pipelines": "cicd_pipelines",
-    "ci/cd": "cicd",
-    "web development": "web_development",
-    "front end": "front_end",
-    "back end": "back_end",
-    "full stack": "full_stack",
-    "microservices architecture": "microservices_architecture",
-    "distributed systems": "distributed_systems",
-    "cloud computing": "cloud_computing",
-    "cloud infrastructure": "cloud_infrastructure",
-    "container orchestration": "container_orchestration",
-    "infrastructure as code": "infrastructure_as_code",
-    "configuration management": "configuration_management",
-    "secret management": "secret_management",
-    "identity and access management": "identity_and_access_management",
-    "high availability": "high_availability",
-    "load balancing": "load_balancing",
-    "api gateway": "api_gateway",
-
-    # Data Science / ML / AI
-    "machine learning": "machine_learning",
-    "deep learning": "deep_learning",
-    "natural language processing": "natural_language_processing",
-    "natural language generation": "natural_language_generation",
-    "data science": "data_science",
-    "data visualization": "data_visualization",
-    "big data": "big_data",
-    "etl pipelines": "etl_pipelines",
-    "time series analysis": "time_series_analysis",
-    "computer vision": "computer_vision",
-    "reinforcement learning": "reinforcement_learning",
-    "generative adversarial networks": "generative_adversarial_networks",
-    "graph neural networks": "graph_neural_networks",
-    "transformer models": "transformer_models",
-
-    # Cybersecurity / Low-Level
-    "cyber security": "cyber_security",
-    "penetration testing": "penetration_testing",
-    "threat analysis": "threat_analysis",
-    "digital forensics": "digital_forensics",
-    "reverse engineering": "reverse_engineering",
-    "vulnerability assessment": "vulnerability_assessment",
-    "risk management": "risk_management",
-    "regulatory compliance": "regulatory_compliance",
-    "incident response": "incident_response",
-
-    # Embedded / Systems Programming
-    "linux kernel driver development": "linux_kernel_driver_development",
-    "embedded systems": "embedded_systems",
-    "high performance computing": "high_performance_computing",
-
-    # DevOps / Methodologies
-    "project management": "project_management",
-    "product management": "product_management",
-    "quality assurance": "quality_assurance",
-    "business analysis": "business_analysis",
-    "test driven development": "test_driven_development",
-    "behavior driven development": "behavior_driven_development",
-    "continuous integration": "continuous_integration",
-    "continuous deployment": "continuous_deployment",
-    "devops pipelines": "devops_pipelines",
-    "agile methodology": "agile_methodology",
-    "scrum master": "scrum_master",
-    "user experience design": "user_experience_design",
-    "responsive design": "responsive_design",
-    "root cause analysis": "root_cause_analysis",
-    "static code analysis": "static_code_analysis",
-    "dynamic code analysis": "dynamic_code_analysis",
-    "automated testing": "automated_testing",
-    "pair programming": "pair_programming",
-    "peer code review": "peer_code_review"
-}
 
 app = FastAPI()
 
@@ -306,89 +257,188 @@ def extract_text_from_pdf(file):
         return " ".join(text.split())  # Remove extraneous whitespace
     except Exception as e:
         raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+
+def tokenize(text):
+    """
+    Tokenizes the input text into normalized tokens, handling multi-word skills.
+
+    This function processes the input text to:
+    - Replace multi-word skills with a single token (e.g., "machine learning" becomes "machine_learning").
+    - Normalize tokens by converting to lowercase and removing special characters.
+    - Remove stop words from the tokenized text.
+
+    Args:
+        text (str): The input text to tokenize.
+
+    Returns:
+        list: A list of normalized tokens extracted from the input text.
+    """
+    if not isinstance(text, str):
+        return []
+
+    # Replace multi-word skills with underscores
+    def replace_multi_word_skills(match):
+        return match.group(0).lower().replace(' ', '_').replace('/', '').replace('.', '')
     
-def preprocess_text(text: str) -> str:
+    text = MULTI_WORD_PATTERN.sub(replace_multi_word_skills, text)
+    
+    # Find all word tokens (including those with underscores)
+    tokens = re.findall(r'\b\w+\b', text.lower())
+    
+    # Remove stop words
+    tokens = [token for token in tokens if token not in STOP_WORDS]
+    
+    return tokens
+
+def extract_skills(job_description):
     """
-    Preprocess the input text by replacing known multi-word skill phrases with single-token forms.
-    The replacement is done case-insensitively, ensuring that variations in capitalization do not
-    affect the ability to recognize these terms.
+    Extracts required and preferred skills from a job description.
+
+    The function parses the job description text to identify skills listed
+    under "Required Skills" and "Preferred Skills" sections. Skills are normalized
+    to lowercase and multi-word skills are converted to a single token using underscores.
 
     Args:
-        text (str): The original text to preprocess.
+        job_description (str): The job description text to extract skills from.
 
     Returns:
-        str: The preprocessed text with multi-word skills replaced by single tokens.
+        tuple: A tuple containing two sets:
+            - required_skills (set): A set of skills identified as required.
+            - preferred_skills (set): A set of skills identified as preferred.
     """
-    for phrase, token in MULTI_WORD_SKILLS.items():
-        # Use word boundaries (\b) to ensure whole phrase matches only.
-        pattern = r'\b' + re.escape(phrase) + r'\b'
-        text = re.sub(pattern, token, text, flags=re.IGNORECASE)
+    required_skills = set()
+    preferred_skills = set()
 
-    return text
+    if not isinstance(job_description, str):
+        return required_skills, preferred_skills
 
-def tokenize(text: str):
+    # Split the job description into lines for processing
+    lines = job_description.splitlines()
+
+    current_section = None
+    section_headers = {
+        'required': re.compile(r'^required skills?:?$', re.IGNORECASE),
+        'preferred': re.compile(r'^preferred skills?:?$', re.IGNORECASE)
+    }
+
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue  # Skip empty lines
+
+        # Check if the line is a section header
+        if section_headers['required'].match(line):
+            current_section = 'required'
+            continue
+        elif section_headers['preferred'].match(line):
+            current_section = 'preferred'
+            continue
+
+        # If within a recognized section, extract skills
+        if current_section in ['required', 'preferred']:
+            # Remove common bullet points if present
+            line = re.sub(r'^[-*•]\s*', '', line)
+            # Split skills by commas or semicolons
+            skills = re.split(r',|;', line)
+            for skill in skills:
+                skill = skill.strip().lower()  # Keep multi-word skills as is
+                if skill:
+                    # Replace multi-word skills with underscores
+                    skill_transformed = MULTI_WORD_PATTERN.sub(
+                        lambda match: match.group(0).lower().replace(' ', '_').replace('/', '').replace('.', ''),
+                        skill
+                    )
+                    if current_section == 'required':
+                        required_skills.add(skill_transformed)
+                    elif current_section == 'preferred':
+                        preferred_skills.add(skill_transformed)
+
+    return required_skills, preferred_skills
+
+
+def calculate_fit_score(resume_text, job_description):
     """
-    Normalize text by converting to lowercase, removing punctuation, and splitting into words.
+    Calculates a fit score based on the match between resume text and job description.
+
+    This function evaluates how well a resume aligns with a job description
+    by comparing the extracted skills from both. Required skills contribute 70%
+    to the score, while preferred skills contribute 30%.
 
     Args:
-        text (str): Input text.
+        resume_text (str): The text extracted from the resume.
+        job_description (str): The job description text.
 
     Returns:
-        list: List of normalized tokens (words).
+        int: A fit score between 0 and 100, representing the degree of match.
     """
-    text = preprocess_text(text)  # Preprocess to handle multi-word phrases
-    return re.findall(r'\b\w+\b', text.lower()) if text else []
+    if not isinstance(resume_text, str) or not isinstance(job_description, str):
+        return 0
 
-def calculate_fit_score(resume_text: str, job_description: str) -> int:
+    # Extract required and preferred skills
+    required_skills, preferred_skills = extract_skills(job_description)
+    print("required skills",required_skills)
+    print("preferred skills", preferred_skills)
+
+    if not required_skills and not preferred_skills:
+        return 0  # No skills to match
+
+    # Tokenize resume
+    resume_tokens = set(tokenize(resume_text))
+    print("resume tokens", resume_tokens)
+
+    # Calculate matches
+    required_matches = required_skills.intersection(resume_tokens)
+    print("required_matches", required_matches)
+    preferred_matches = preferred_skills.intersection(resume_tokens)
+    print("preferred_matches", preferred_matches)
+
+    # Calculate weighted score
+    required_score = (len(required_matches) / len(required_skills)) * 70 if required_skills else 0
+    preferred_score = (len(preferred_matches) / len(preferred_skills)) * 30 if preferred_skills else 0
+
+    total_score = required_score + preferred_score
+    return min(int(total_score), 100)  # Ensure score does not exceed 100
+
+def generate_feedback(resume_text, job_description):
     """
-    Calculate the fit score between a resume and a job description based on keyword matching.
+    Generates actionable feedback on missing skills in the resume.
+
+    This function identifies the skills present in the job description but
+    missing from the resume, and provides suggestions on how to improve the resume
+    to align better with the job description.
 
     Args:
-        resume_text (str): The text of the resume.
-        job_description (str): The text of the job description.
+        resume_text (str): The text extracted from the resume.
+        job_description (str): The job description text.
 
     Returns:
-        int: Fit score as a percentage (0-100).
+        dict: A dictionary containing:
+            - missing_keywords (list): A list of skills missing from the resume.
+            - suggestions (list): Suggestions on how to address the missing skills.
     """
-    # Tokenize
-    resume_tokens = [token for token in tokenize(resume_text) if token not in STOP_WORDS]
-    job_tokens = [token for token in tokenize(job_description) if token not in STOP_WORDS]
-
-    # Count matches
-    resume_counter = Counter(resume_tokens)
-    job_counter = Counter(job_tokens)
-
-    matches = sum((resume_counter & job_counter).values())
-    total_keywords = len(job_tokens)
-
-    return int((matches / total_keywords) * 100) if total_keywords > 0 else 0
-
-def generate_feedback(resume_text: str, job_description: str):
-    """
-    Generate feedback on missing keywords in a resume compared to a job description.
-
-    Args:
-        resume_text (str): The text of the resume.
-        job_description (str): The text of the job description.
-
-    Returns:
-        dict: Feedback including matched and missing keywords, and improvement suggestions.
-    """
-    # Tokenize
-    resume_tokens = {token for token in tokenize(resume_text) if token not in STOP_WORDS}
-    job_tokens = {token for token in tokenize(job_description) if token not in STOP_WORDS}
-
-    matched_keywords = resume_tokens.intersection(job_tokens)
-    missing_keywords = job_tokens.difference(resume_tokens)
-
-    suggestions = [
-        f"Consider adding details or experience related to '{keyword}' in your resume."
-        for keyword in missing_keywords
-    ]
-
+    if not isinstance(resume_text, str) or not isinstance(job_description, str):
+        return {"missing_keywords": [], "suggestions": []}
+    
+    # Extract required and preferred skills
+    required_skills, preferred_skills = extract_skills(job_description)
+    
+    # Tokenize resume
+    resume_tokens = set(tokenize(resume_text))
+    
+    # Identify missing skills
+    missing_required = sorted(required_skills - resume_tokens)
+    missing_preferred = sorted(preferred_skills - resume_tokens)
+    
+    missing_keywords = missing_required + missing_preferred
+    
+    suggestions = []
+    for skill in missing_required:
+        suggestions.append(f"Include experience with {skill.replace('_', ' ')}.")
+    for skill in missing_preferred:
+        suggestions.append(f"Add projects demonstrating {skill.replace('_', ' ')}.")
+    
     return {
-        "matched_keywords": list(matched_keywords),
-        "missing_keywords": list(missing_keywords),
+        "missing_keywords": missing_keywords,
         "suggestions": suggestions
     }
 

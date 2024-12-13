@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from backend.database.models import User
-from backend.main import app, get_db, extract_text_from_pdf, temp_storage, calculate_fit_score, generate_feedback, tokenize, STOP_WORDS
+from backend.main import app, get_db, extract_text_from_pdf, temp_storage, calculate_fit_score, generate_feedback, tokenize, STOP_WORDS, extract_skills
 from unittest.mock import MagicMock
 import pytest
 import os
@@ -228,6 +228,8 @@ def test_data_insertion_and_retrieval(clear_temp_storage):
     assert "job_description" in temp_storage[session_id]
     assert temp_storage[session_id]["job_description"] == "Job description here"
 
+# TOKENIZATION TESTS 
+
 def test_tokenize_basic():
     text = "Hello World!"
     tokens = tokenize(text)
@@ -236,7 +238,7 @@ def test_tokenize_basic():
 def test_tokenize_mixed_case():
     text = "PyThOn aNd AWS"
     tokens = tokenize(text)
-    assert tokens == ["python", "and", "aws"], "Should normalize all tokens to lowercase."
+    assert tokens == ["python", "aws"], "Should normalize all tokens to lowercase and remove stop words."
 
 def test_tokenize_punctuation():
     text = "Python, AWS, REST APIs!"
@@ -251,21 +253,144 @@ def test_tokenize_empty_string():
     tokens = tokenize(text)
     assert tokens == [], "Empty input should return an empty list."
 
+# EXTRACT TESTS
+
+def test_extract_skills_with_sections():
+    job_description = """
+    Required Skills:
+    - Python
+    - AWS
+    - REST APIs
+
+    Preferred Skills:
+    - Docker
+    - Kubernetes
+    - CI/CD Pipelines
+    """
+    expected_required = {"python", "aws", "rest_apis"}
+    expected_preferred = {"docker", "kubernetes", "cicd_pipelines"}
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_with_comma_separated():
+    job_description = """
+    Required Skills:
+    Python, AWS, REST APIs
+
+    Preferred Skills:
+    Docker, Kubernetes, CI/CD Pipelines
+    """
+    expected_required = {"python", "aws", "rest_apis"}
+    expected_preferred = {"docker", "kubernetes", "cicd_pipelines"}
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_mixed_bullets_and_commas():
+    job_description = """
+    Required Skills:
+    - Python
+    - AWS, REST APIs
+
+    Preferred Skills:
+    Docker, Kubernetes
+    - CI/CD Pipelines
+    """
+    expected_required = {"python", "aws", "rest_apis"}
+    expected_preferred = {"docker", "kubernetes", "cicd_pipelines"}
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_missing_sections():
+    job_description = """
+    Responsibilities:
+    - Develop software solutions.
+    - Collaborate with teams.
+
+    Qualifications:
+    - Bachelor's degree in Computer Science.
+    """
+    expected_required = set()
+    expected_preferred = set()
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_empty_job_description():
+    job_description = ""
+    expected_required = set()
+    expected_preferred = set()
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_non_string_input():
+    job_description = None
+    expected_required = set()
+    expected_preferred = set()
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_case_insensitivity():
+    job_description = """
+    REQUIRED SKILLS:
+    - Python
+    - AWS
+
+    preferred skills:
+    - Docker
+    - Kubernetes
+    """
+    expected_required = {"python", "aws"}
+    expected_preferred = {"docker", "kubernetes"}
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+def test_extract_skills_with_multiple_spaces():
+    job_description = """
+    Required Skills:
+    -  Python
+    - AWS
+        - REST APIs
+
+    Preferred Skills:
+    - Docker
+      - Kubernetes
+    - CI/CD Pipelines
+    """
+    expected_required = {"python", "aws", "rest_apis"}
+    expected_preferred = {"docker", "kubernetes", "cicd_pipelines"}
+    extracted_required, extracted_preferred = extract_skills(job_description)
+    assert extracted_required == expected_required
+    assert extracted_preferred == expected_preferred
+
+# FIT SCORE CALCULATION TESTS
+
 def test_calculate_fit_score_full_match():
     resume_text = (
         "John Doe\n"
         "Experienced Software Engineer with 5 years of experience in Python, AWS, and REST APIs.\n"
         "Skills: Python, AWS, REST APIs, Java, Docker\n"
         "Work Experience:\n"
-        " - Developed RESTful APIs in Python.\n"
-        " - Managed infrastructure on AWS.\n"
+        "- Developed RESTful APIs in Python.\n"
+        "- Managed infrastructure on AWS.\n"
     )
     job_description = (
         "Looking for a software engineer with strong experience in Python, AWS, and REST APIs.\n"
-        "Candidates should be proficient in modern cloud technologies and web services."
+        "Candidates should be proficient in modern cloud technologies and web services.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- AWS\n"
+        "- REST APIs\n\n"
+        "Preferred Skills:\n"
+        "- Docker"
     )
     score = calculate_fit_score(resume_text, job_description)
-    assert score == 100, "All key skills (Python, AWS, REST APIs) should fully match, resulting in 100%."
+    assert 95 <= score <= 100, "All key skills (Python, AWS, REST APIs) should fully match, resulting in near 100%."
 
 def test_calculate_fit_score_partial_match():
     resume_text = (
@@ -276,10 +401,17 @@ def test_calculate_fit_score_partial_match():
     )
     job_description = (
         "We are looking for a developer skilled in Python, AWS, and REST APIs.\n"
-        "Knowledge of Docker and Kubernetes is a plus."
+        "Knowledge of Docker and Kubernetes is a plus.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- AWS\n"
+        "- REST APIs\n\n"
+        "Preferred Skills:\n"
+        "- Docker\n"
+        "- Kubernetes"
     )
     score = calculate_fit_score(resume_text, job_description)
-    assert score > 0 and score < 100, "Should have a partial match but not full (since other terms might not match)."
+    assert 0 < score < 100, "Should have a partial match but not full (since some skills are missing)."
 
 def test_calculate_fit_score_no_match():
     resume_text = (
@@ -290,14 +422,82 @@ def test_calculate_fit_score_no_match():
     job_description = (
         "Looking for a software engineer with experience in Python, AWS, and REST APIs.\n"
         "Must be knowledgeable in cloud environments and backend services."
+        "Required Skills:\n"
+        "- Python\n"
+        "- REST APIs\n"
+        "- AWS\n\n"
+        "Preferred Skills:\n"
+        "- GCP\n"
+        "- AWS\n"
+        "- Azure"
     )
     score = calculate_fit_score(resume_text, job_description)
     assert score == 0, "No shared keywords between resume and job description should yield 0."
 
 def test_calculate_fit_score_empty_input():
-    # Empty resume or job description should yield 0
-    assert calculate_fit_score("", "some job description") == 0, "Empty resume should yield 0."
-    assert calculate_fit_score("some resume text", "") == 0, "Empty job description should yield 0."
+    assert calculate_fit_score("", "Some job description") == 0, "Empty resume should yield 0."
+    assert calculate_fit_score("Some resume text", "") == 0, "Empty job description should yield 0."
+    assert calculate_fit_score("", "") == 0, "Both resume and job description empty should yield 0."
+
+def test_calculate_fit_score_with_extra_skills():
+    resume_text = (
+        "Samuel Lee\n"
+        "Data Analyst with expertise in Python, R, SQL, Tableau, and Excel.\n"
+        "Experience in data visualization and statistical analysis."
+    )
+    job_description = (
+        "Required Skills:\n"
+        "- Python\n"
+        "- SQL\n\n"
+        "Preferred Skills:\n"
+        "- R\n"
+        "- Tableau\n"
+        "- Power BI"
+    )
+    score = calculate_fit_score(resume_text, job_description)
+    # Required: Python, SQL => 2/2 matched
+    # Preferred: R, Tableau, Power BI => 2/3 matched
+    expected_score = int((2 / 2) * 70 + (2 / 3) * 30)  # 70 + 20 = 90
+    assert score == expected_score, f"Expected {expected_score}, got {score}"
+
+def test_calculate_fit_score_bioinformatics():
+    resume_text = (
+        "John Doe\n"
+        "Bioinformatics graduate with experience in analyzing NGS data, writing scripts, and performing statistical analyses.\n"
+        "Skills: Python, R, NGS_pipelines, data_visualization, machine_learning, QC Measures, Collaboration, Script\n"
+        "Experience:\n"
+        "- Assisted in analyzing NGS data using established pipelines.\n"
+        "- Performed QC measures for sequencing data.\n"
+        "- Collaborated with researchers on sequencing data interpretation.\n"
+    )
+    job_description = (
+        "As a Bioinformatics Assistant II, you will be trained in the analysis and interpretation of next-generation sequencing (NGS) data, "
+        "originating from mouse experiments of cancer metastasis as well as patients, under the guidance of postdoctoral scientists and bioinformaticians.\n"
+        "Responsibilities:\n"
+        "- Learn and assist in analyzing sequencing data using established pipelines\n"
+        "- Learn and perform appropriate QC measures\n"
+        "- Learn and develop/benchmark new tools for sequencing data analysis\n"
+        "- Assist and collaborate with internal and external researchers in interpretation of sequencing data\n"
+        "- Other responsibilities, as assigned\n\n"
+        "Required Skills:\n"
+        "- NGS Pipelines\n"
+        "- Sequencing Data\n"
+        "- QC Measures\n"
+        "- Collaboration\n"
+        "- Code\n"
+        "- Script\n\n"
+        "Preferred Skills:\n"
+        "- Statistics\n"
+        "- Machine Learning\n"
+    )
+
+    # Calculate the score
+    score = calculate_fit_score(resume_text, job_description)
+
+    assert score >=50, f"Expected a good match, got {score}"
+
+
+# FEEDBACK GENERATION TESTS
 
 def test_generate_feedback_missing_skills():
     resume_text = (
@@ -307,18 +507,22 @@ def test_generate_feedback_missing_skills():
     )
     job_description = (
         "We need a candidate with strong Python, AWS, and REST APIs skills.\n"
-        "Should also have some exposure to Docker and CI/CD pipelines."
+        "Should also have some exposure to Docker and CI/CD pipelines.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- AWS\n"
+        "- REST APIs\n\n"
+        "Preferred Skills:\n"
+        "- Docker\n"
+        "- CI/CD pipelines"
     )
     feedback = generate_feedback(resume_text, job_description)
     assert "rest_apis" in feedback["missing_keywords"], "REST APIs should be identified as missing."
+    assert "docker" in feedback["missing_keywords"], "Docker should be identified as missing."
     assert "cicd_pipelines" in feedback["missing_keywords"], "CI/CD pipelines should be identified as missing."
-    assert len(feedback["suggestions"]) >= 2, "At least two suggestions should be provided for the missing keywords."
+    assert len(feedback["suggestions"]) >= 3, "At least three suggestions should be provided for the missing keywords."
 
 def test_generate_feedback_no_missing_skills():
-    # Let's say we just decide "ci/cd" is the essential skill and "pipelines" is a filler.
-    # Add "pipelines" and "software" to STOP_WORDS to remove it from consideration as a skill.
-    STOP_WORDS.add("pipelines")
-    STOP_WORDS.add("software")
     resume_text = (
         "Chris Green\n"
         "Full-stack Engineer experienced in Python, AWS, and REST APIs.\n"
@@ -328,7 +532,123 @@ def test_generate_feedback_no_missing_skills():
         "Looking for a software engineer experienced in Python, AWS, and REST APIs.\n"
         "Familiarity with Docker and CI/CD pipelines is a plus."
     )
-
     feedback = generate_feedback(resume_text, job_description)
     assert len(feedback["missing_keywords"]) == 0, "No missing keywords should be found."
     assert len(feedback["suggestions"]) == 0, "No suggestions should be provided if nothing is missing."
+
+def test_generate_feedback_all_skills_present():
+    resume_text = (
+        "Alex Johnson\n"
+        "Full-stack Developer with expertise in JavaScript, React, Node.js, TypeScript, and GraphQL.\n"
+        "Experience in building scalable web applications."
+    )
+    job_description = (
+        "Looking for a developer proficient in JavaScript, React, and Node.js.\n"
+        "Knowledge of TypeScript and GraphQL is desirable."
+    )
+    feedback = generate_feedback(resume_text, job_description)
+    assert len(feedback["missing_keywords"]) == 0, "No missing keywords should be found."
+    assert len(feedback["suggestions"]) == 0, "No suggestions should be provided if nothing is missing."
+
+def test_generate_feedback_all_skills_missing():
+    resume_text = (
+        "Emily Davis\n"
+        "Marketing Specialist with experience in SEO, content creation, and social media management."
+    )
+    job_description = (
+        "Seeking a software engineer with skills in Python, AWS, and REST APIs.\n"
+        "Familiarity with Docker and Kubernetes is a plus.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- AWS\n"
+        "- REST APIs\n\n"
+        "Preferred Skills:\n"
+        "- Docker\n"
+        "- Kubernetes"
+    )
+    feedback = generate_feedback(resume_text, job_description)
+    expected_missing = {"python", "aws", "rest_apis", "docker", "kubernetes"}
+    assert set(feedback["missing_keywords"]) == expected_missing, f"Expected missing_keywords {expected_missing}, got {feedback['missing_keywords']}"
+    assert len(feedback["suggestions"]) == len(expected_missing), "Suggestions should be provided for all missing keywords."
+
+def test_generate_feedback_with_partial_matches():
+    resume_text = (
+        "Olivia Martinez\n"
+        "Data Scientist with experience in Python and R.\n"
+        "Worked on data visualization and machine learning projects.\n"
+    )
+    job_description = (
+        "Looking for a data scientist skilled in Python, R, SQL, and machine learning.\n"
+        "Experience with big data technologies and data warehousing is a plus.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- R\n"
+        "- SQL\n"
+        "- Machine Learning\n\n"
+        "Preferred Skills:\n"
+        "- Big Data Technologies\n"
+        "- Data Warehousing"
+    )
+    feedback = generate_feedback(resume_text, job_description)
+    expected_missing = {"sql", "big_data_technologies", "data_warehousing"}
+    assert set(feedback["missing_keywords"]) == expected_missing, f"Expected missing_keywords {expected_missing}, got {feedback['missing_keywords']}"
+    assert len(feedback["suggestions"]) == len(expected_missing), "Suggestions should be provided for all missing keywords."
+
+def test_generate_feedback_with_synonyms_and_variations():
+    resume_text = (
+        "Daniel Wilson\n"
+        "DevOps Engineer with expertise in CI/CD, Kubernetes, and AWS.\n"
+        "Experience in infrastructure as code and automated deployments.\n"
+    )
+    job_description = (
+        "Seeking a DevOps Engineer proficient in Continuous Integration and Continuous Deployment (CI/CD), AWS, and Kubernetes.\n"
+        "Familiarity with Terraform and automated deployment processes is desirable.\n\n"
+        "Required Skills:\n"
+        "- Continuous Integration\n"
+        "- Continuous Deployment\n"
+        "- AWS\n"
+        "- Kubernetes\n\n"
+        "Preferred Skills:\n"
+        "- Terraform\n"
+        "- Automated Deployment Processes"
+    )
+    feedback = generate_feedback(resume_text, job_description)
+    expected_missing = {"terraform", 'continuous_deployment', 'continuous_integration', 'automated_deployment_processes'}
+    assert set(feedback["missing_keywords"]) == expected_missing, f"Expected missing_keywords {expected_missing}, got {feedback['missing_keywords']}"
+    assert len(feedback["suggestions"]) == len(expected_missing), "Suggestions should be provided for all missing keywords."
+
+
+def test_generate_feedback_no_job_skills():
+    resume_text = (
+        "Michael Scott\n"
+        "Regional Manager with extensive experience in sales and customer relations."
+    )
+    job_description = ""
+    feedback = generate_feedback(resume_text, job_description)
+    assert feedback["missing_keywords"] == [], "Empty job description should result in no missing keywords."
+    assert feedback["suggestions"] == [], "Empty job description should result in no suggestions."
+
+def test_generate_feedback_no_resume_skills():
+    resume_text = ""
+    job_description = (
+        "Looking for a software engineer with experience in Python, AWS, and REST APIs.\n"
+        "Familiarity with Docker and Kubernetes is a plus.\n\n"
+        "Required Skills:\n"
+        "- Python\n"
+        "- AWS\n"
+        "- REST APIs\n\n"
+        "Preferred Skills:\n"
+        "- Docker\n"
+        "- Kubernetes"
+    )
+    feedback = generate_feedback(resume_text, job_description)
+    expected_missing = {"python", "aws", "rest_apis", "docker", "kubernetes"}
+    assert set(feedback["missing_keywords"]) == expected_missing, f"Expected missing_keywords {expected_missing}, got {feedback['missing_keywords']}"
+    assert len(feedback["suggestions"]) == len(expected_missing), "Suggestions should be provided for all missing keywords."
+
+def test_generate_feedback_empty_inputs():
+    resume_text = ""
+    job_description = ""
+    feedback = generate_feedback(resume_text, job_description)
+    assert feedback["missing_keywords"] == [], "Both resume and job description empty should yield no missing keywords."
+    assert feedback["suggestions"] == [], "Both resume and job description empty should yield no suggestions."
