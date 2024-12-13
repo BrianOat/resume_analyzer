@@ -2,6 +2,7 @@ import ResumeFitScore from './ResumeFitScore';
 import SkillsMatched from './SkillsMatched';
 import ImprovementSuggestions from './ImprovementSuggestions';
 import ResumeView from './ResumeView';
+import FeedbackFilter from './FeedbackFilter'; 
 import "../../styles/dashboard/dashboard.css";
 import CheckToken from '../CheckToken';
 
@@ -21,6 +22,7 @@ const Dashboard = () => {
         <div className="dashboard-analysis-results">
           <h1 className="dashboard-header">Resume Analysis Results</h1>
           <ResumeFitScore />
+          <FeedbackFilter />
           <SkillsMatched />
           <ImprovementSuggestions />
         </div>

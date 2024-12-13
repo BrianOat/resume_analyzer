@@ -1,0 +1,37 @@
+.feedback-filter-container {
+    background-color: white;
+    padding: 16px; /* Equivalent to p-4 in Tailwind */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Equivalent to shadow */
+    border-radius: 8px; /* Equivalent to rounded */
+  }
+  
+  .feedback-filter-header {
+    font-size: 1.25rem; /* Equivalent to text-xl */
+    font-weight: 600; /* Equivalent to font-semibold */
+    margin-bottom: 16px; /* Equivalent to mb-4 */
+  }
+  
+  .feedback-filter-select {
+    width: 100%;
+    height: 40px;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin-bottom: 5px;
+  }
+  
+  .feedback-filter-list {
+    list-style-type: disc; /* Equivalent to list-disc */
+    padding-left: 20px; /* Equivalent to pl-5 */
+    margin: 0;
+  }
+  
+  .feedback-filter-list li {
+    padding: 10px;
+    border-bottom: 1px solid #ccc;
+  }
+  
+  .feedback-filter-list li:last-child {
+    border-bottom: none;
+  }
