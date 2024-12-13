@@ -6,6 +6,11 @@ const CheckToken = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log(process.env.REACT_APP_SKIP_TOKEN_CHECK)
+    if (process.env.REACT_APP_SKIP_TOKEN_CHECK === "true") {
+      console.log("Skipping token check in testing environment.");
+      return;
+    }
     const token = localStorage.getItem('token');
     
     if (token != null) {
