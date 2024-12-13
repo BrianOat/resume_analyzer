@@ -71,7 +71,22 @@ async def register(payload: RegisterPayload, response: Response, db: Session = D
       db.commit()
       response.status_code = status.HTTP_201_CREATED
       return {"message": "User registered"}
-  
+
+@app.delete("/api/delete")
+async def delete(email: str, response: Response, db: Session = Depends(get_db)):
+    try:
+        user_to_delete = db.query(models.User).filter_by(email=email).first()
+        if not user_to_delete:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": "User not found"}
+        db.delete(user_to_delete)
+        db.commit()
+        response.status_code = status.HTTP_200_OK
+        return {"message": "User deleted"}
+    except ValueError as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": "User deletion failed"}
+        
 @app.post("/api/login")
 async def login(payload: LoginPayload, response: Response, db: Session = Depends(get_db)):
     """
@@ -141,6 +156,7 @@ async def resume_upload(file: UploadFile, response: Response):
             "session_id": session_id
         }
     except ValueError as e:
+        print(str(e))
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": f"Error processing PDF: {str(e)}", "status": "error"}
       
