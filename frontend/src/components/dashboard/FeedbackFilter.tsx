@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import "../../styles/dashboard/feedback_filter.css";
+import axios from 'axios';
 
 interface FeedbackItem {
   category: string;
@@ -29,9 +30,16 @@ const FeedbackFilter = () => {
 
   // API call (commented out for now)
   // useEffect(() => {
-  //   fetch('/api/feedback')
-  //     .then(response => response.json())
-  //     .then((data: FeedbackData) => setFeedback(data.feedback));
+  //   const getFeedback = async () => {
+  //     try {
+  //       const response = await axios.get('/api/feedback');
+  //       const data: FeedbackData = response.data;
+  //       setFeedback(data.feedback);
+  //     } catch (error) {
+  //       console.error(error);
+  //     }
+  //   };
+  //   getFeedback();
   // }, []);
 
   useEffect(() => {

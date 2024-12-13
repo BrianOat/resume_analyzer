@@ -1,8 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import "../../styles/dashboard/skills_matched.css";
 
 const SkillsMatched = () => {
-  const skills = ['React', 'JavaScript', 'Tailwind CSS', 'TypeScript']; // Example data
+  const [skills, setSkills] = useState([]);
+
+  // useEffect(() => {
+  //   const getSkills = async () => {
+  //     try {
+  //       const response = await axios.get('/api/skills');
+  //       setSkills(response.data.skills);
+  //     } catch (error) {
+  //       console.error(error);
+  //     }
+  //   };
+  //   getSkills();
+  // }, []);
 
   return (
     <div className="skills-matched-container">
