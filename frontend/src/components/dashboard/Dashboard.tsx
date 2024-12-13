@@ -22,9 +22,8 @@ const Dashboard = () => {
         <div className="dashboard-analysis-results">
           <h1 className="dashboard-header">Resume Analysis Results</h1>
           <ResumeFitScore />
-          <FeedbackFilter />
           <SkillsMatched />
-          <ImprovementSuggestions />
+          <FeedbackFilter />
         </div>
       </div>
     </div>
