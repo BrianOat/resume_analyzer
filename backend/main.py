@@ -7,10 +7,11 @@ import jwt
 import datetime
 from fastapi.middleware.cors import CORSMiddleware
 from database import models
-from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload
+from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
-import openai
+from openai import OpenAI
+import json
 import re
 from collections import Counter
 from typing import List, Dict, Set
@@ -52,6 +53,7 @@ MULTI_WORD_PATTERN = re.compile(
     r'\b(' + '|'.join(re.escape(skill) for skill in sorted(MULTI_WORD_SKILLS, key=lambda x: -len(x))) + r')\b',
     re.IGNORECASE
 )
+
 
 resume_file_content = io.BytesIO()
 
@@ -238,6 +240,134 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         }
     except Exception as e: 
       return {"error": str(e)}
+
+@app.post("/api/analyze")
+async def analyze_text(payload: InputData, response: Response):
+    """
+    Send uploaded resume and job description to NLP API.
+    
+    Args:
+      payload (InputData): The payload containing resume text, job description in standardized input data structure
+      response (Response): The FastAPI Response object for setting the status code
+
+    Returns:
+      OutputData: standardized output data structure for fit score and feedback if succesful otherwise an error status message.
+    """
+    try:
+        resume_text = payload.resume_text.strip()
+        job_description = payload.job_description.strip()
+
+        # Validating input
+        InputData.is_valid(resume_text)
+        InputData.is_valid(job_description)
+        InputData.validate_length(resume_text)
+        InputData.validate_length(job_description)
+
+        # Construct prompt for NLP API call:
+        openai.api_key = os.getenv('gpt_key')
+        prompt = (
+            "You are a career coach. Based on the given resume and job description, "
+            "evaluate the fit and provide specific feedback for improvement.\n\n"
+            f"Resume:\n{resume_text}\n\n"
+            f"Job Description:\n{job_description}\n\n"
+            "Provide:\n1. A fit score (0-100).\n"
+            "2. Feedback as a JSON array where each element is an object with "
+            "'category' and 'text' fields. Categories should be one of 'skills', 'experience', or 'formatting', "
+            "based on the type of improvement suggested. The 'text' should be a concise improvement suggestion.\n\n"
+            "Example:\n"
+            "{\n"
+            "  \"fit_score\": 85,\n"
+            "  \"feedback\": [\n"
+            "    { \"category\": \"skills\", \"text\": \"Include experience with AWS services.\" },\n"
+            "    { \"category\": \"experience\", \"text\": \"Add projects demonstrating REST API development.\" }\n"
+            "  ]\n"
+            "}"
+        )
+        # Making a request to OpenAI API
+        analysis = openai.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": prompt}],
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "resume_analysis",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "fit_score": {
+                                "description": "A score representing how well the resume fits the job description.",
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": 100
+                            },
+                            "feedback": {
+                                "description": "List of feedback points on how the user can improve their resume.",
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "category": {
+                                            "type": "string",
+                                            "description": "Category of the feedback: skills, experience, or formatting"
+                                        },
+                                        "text": {
+                                            "type": "string",
+                                            "description": "The feedback text"
+                                        }
+                                    },
+                                    "required": ["category", "text"]
+                                }
+                            }
+                        },
+                        "required": ["fit_score", "feedback"],
+                        "additionalProperties": False
+                    }
+                }
+            }
+        )
+
+        # Extract relevant fields
+        raw_response = analysis.choices[0].message.content
+
+        if not raw_response.strip():
+            raise ValueError("NLP API returned an empty response.")
+
+        # Attempt to parse response as JSON
+        try:
+            parsed_response = json.loads(raw_response)
+        except json.JSONDecodeError:
+            raise ValueError(f"Response is not in JSON format: {raw_response}")
+
+        fit_score = parsed_response['fit_score']
+        feedback = parsed_response['feedback']
+
+        # Validate output data structure
+        if not isinstance(fit_score, int) or not isinstance(feedback, list):
+            raise ValueError("NLP API response has invalid 'fit_score' or 'feedback' format.")
+
+        # Additional validation checks if needed
+        for f_item in feedback:
+            if 'category' not in f_item or 'text' not in f_item:
+                raise ValueError("Each feedback item must contain 'category' and 'text' fields.")
+
+        # Map parsed data to OutputData (assuming you adjust OutputData accordingly)
+        # If OutputData still expects just a list of strings, you'll need to update it.
+        output = {
+            "fit_score": fit_score,
+            "feedback": feedback
+        }
+
+        response.status_code = status.HTTP_200_OK
+        return output
+    except openai.APIError as e:
+        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        return {"error": f"Unable to process the request due to OpenAI API: {str(e)}", "status": "error"}
+    except ValueError as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": f"Validation error with input. Please try again. {str(e)}", "status": "error"}
+    except Exception as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
 
 def extract_text_from_pdf(file):
     """
