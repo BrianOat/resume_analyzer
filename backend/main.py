@@ -573,7 +573,7 @@ def generate_feedback(resume_text, job_description):
     }
 
 @app.post("/api/fit-score")
-async def fit_score_endpoint(response: Response):
+async def fit_score_endpoint(payload: InputData, response: Response):
     """
     Endpoint to calculate fit score and provide feedback based on resume and job description.
 
@@ -588,29 +588,39 @@ async def fit_score_endpoint(response: Response):
               and suggestions, or an error message if something goes wrong.
     """
     try:
-        session_id = next(iter(temp_storage), None)
-        if not session_id or "resume_text" not in temp_storage[session_id] or "job_description" not in temp_storage[session_id]:
-            response.status_code = status.HTTP_400_BAD_REQUEST
-            return {"error": "Resume or job description not provided.", "status": "error"}
+        resume_text = payload.resume_text.strip()
+        job_description = payload.job_description.strip()
 
-        resume_text = temp_storage[session_id]["resume_text"]
-        job_description = temp_storage[session_id]["job_description"]
+        InputData.is_valid(resume_text)
+        InputData.is_valid(job_description)
+        InputData.validate_length(resume_text)
+        InputData.validate_length(job_description)
 
-        fit_score = calculate_fit_score(resume_text, job_description)
-        feedback = generate_feedback(resume_text, job_description)
+        analysis_result = await analyze_text(payload, response)
+
+        if "error" in analysis_result:
+            return analysis_result
+
+        feedback = analysis_result["feedback"]
+
+        resume_tokens = set(tokenize(resume_text))
+        required_skills, preferred_skills = extract_skills(job_description)
+
+        required_match = len(resume_tokens.intersection(required_skills)) / len(required_skills) if required_skills else 1
+        preferred_match = len(resume_tokens.intersection(preferred_skills)) / len(preferred_skills) if preferred_skills else 1
+
+        calculated_fit_score = int((required_match * 0.7 + preferred_match * 0.3) * 100)
 
         response.status_code = status.HTTP_200_OK
         return {
-            "message": "Fit score calculated successfully.",
-            "status": "success",
-            "fit_score": fit_score,
-            "matched_keywords": feedback["matched_keywords"],
-            "missing_keywords": feedback["missing_keywords"],
-            "suggestions": feedback["suggestions"]
+            "fit_score": calculated_fit_score,
+            "feedback": feedback,
+            "skills_feedback": generate_feedback(resume_tokens, required_skills, preferred_skills)
         }
+
     except Exception as e:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"error": str(e), "status": "error"}
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
 
 openai.api_key = os.getenv('gpt_key')
 def test():
