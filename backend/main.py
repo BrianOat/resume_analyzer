@@ -603,34 +603,35 @@ async def fit_score_endpoint(payload: InputData, response: Response):
 
         feedback = analysis_result["feedback"]
 
-        resume_tokens = set(tokenize(resume_text))
+        calculated_fit_score = calculate_fit_score(resume_text, job_description)
+        skill_feedback = generate_feedback(resume_text, job_description)
+
+        sorted_feedback = []
+        for feedback_item in feedback:
+            sorted_feedback.append({
+                "category": feedback_item.get("category", "general"),
+                "text": feedback_item.get("text", "")
+            })
+
+        for suggestion in skill_feedback["suggestions"]:
+            sorted_feedback.append({
+                "category": "skills",  
+                "text": suggestion
+            })
+
         required_skills, preferred_skills = extract_skills(job_description)
-
-        required_match = len(resume_tokens.intersection(required_skills)) / len(required_skills) if required_skills else 1
-        preferred_match = len(resume_tokens.intersection(preferred_skills)) / len(preferred_skills) if preferred_skills else 1
-
-        calculated_fit_score = int((required_match * 0.7 + preferred_match * 0.3) * 100)
+        resume_tokens = set(tokenize(resume_text))
+        matched_skills = list(resume_tokens.intersection(required_skills | preferred_skills))
 
         response.status_code = status.HTTP_200_OK
         return {
             "fit_score": calculated_fit_score,
-            "feedback": feedback,
-            "skills_feedback": generate_feedback(resume_tokens, required_skills, preferred_skills)
+            "feedback": sorted_feedback,
+            "matched_skills": matched_skills,
+            "missing_keywords": skill_feedback["missing_keywords"],
+            "suggestions": skill_feedback["suggestions"]
         }
 
     except Exception as e:
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
-
-openai.api_key = os.getenv('gpt_key')
-def test():
-  # Define the model and input
-  response = openai.chat.completions.create(
-    model= "gpt-4o-mini",
-    messages= [{ "role": "user", "content": "Say this is a test" }]
-  )
-
-  # Print the response
-  print(response)
-
-test()
