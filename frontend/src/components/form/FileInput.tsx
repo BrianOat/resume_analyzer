@@ -1,6 +1,7 @@
 import React from "react";
 import axios from "axios";
 import "../../styles/form/file_input.css"
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // Fallback to localhost in dev
 
 interface FileInputProps {
   label: string;
@@ -15,7 +16,7 @@ const FileInput: React.FC<FileInputProps> = ({ label }) => {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("http://localhost:8000/api/resume-upload", formData, {
+      const response = await axios.post(`${backendUrl}/api/resume-upload`, formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         }

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 import "../styles/styles.css"; // General styles
 import "../styles/form/login.css"; // Page-specific styles
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // Fallback to localhost in dev
 
 const Login: React.FC = () => {
     const navigate = useNavigate();
@@ -22,7 +23,7 @@ const Login: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const response = await axios.post("http://localhost:8000/api/login", formData);
+            const response = await axios.post(`${backendUrl}/api/login`, formData);
             console.log(response.data.token);
             localStorage.setItem('token', response.data.token);
             setError("");
