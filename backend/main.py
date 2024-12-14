@@ -616,21 +616,14 @@ async def fit_score_endpoint(response: Response):
         if "error" in analysis_result:
             return analysis_result
 
-        feedback = analysis_result["feedback"]
 
         calculated_fit_score = calculate_fit_score(resume_text, job_description)
         skill_feedback = generate_feedback(resume_text, job_description)
 
-        sorted_feedback = []
-        for feedback_item in feedback:
-            sorted_feedback.append({
-                "category": feedback_item.get("category", "general"),
-                "text": feedback_item.get("text", "")
-            })
-
+        sorted_feedback = analysis_result["feedback"]
         for suggestion in skill_feedback["suggestions"]:
             sorted_feedback.append({
-                "category": "skills",  
+                "category": "skills",
                 "text": suggestion
             })
 
