@@ -40,3 +40,38 @@ services:
     build:
       context: ./frontend/
       dockerfile: src/tests/dockerfile
+
+
+  frontend-e2e:
+    profiles:
+      - test
+    build:
+      context: ./frontend
+      dockerfile: ./dockerfile
+      args:
+        REACT_APP_SKIP_TOKEN_CHECK: "true"
+        REACT_APP_BACKEND_URL: "http://backend:8000"
+    restart: always
+    ports:
+      - "127.0.0.1:3000:3000"
+    expose:
+      - 3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+  e2e-tests:
+    profiles:
+      - test
+    build:
+      context: ./e2e
+      dockerfile: dockerfile.e2e
+    env_file:
+      - .env
+    depends_on:
+      - backend
+      - frontend-e2e
+    command: npx playwright test
