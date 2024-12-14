@@ -10,11 +10,12 @@ from database import models
 from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
-from openai import OpenAI
+import openai
 import json
 import re
 from collections import Counter
 from typing import List, Dict, Set
+import pdb
 
 # For tokenizing 
 STOP_WORDS = set([
@@ -189,7 +190,7 @@ async def resume_upload(file: UploadFile, response: Response):
         #Create a session ID to store data
         session_id = str(uuid.uuid4())
         temp_storage[session_id] = {"resume_text": text}
-
+        #print("Request data:", text)
         response.status_code = status.HTTP_200_OK
         return {
             "message": "Resume uploaded successfully.",
@@ -222,6 +223,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         if session_id:
            temp_storage[session_id]["job_description"] = job_description
            response.status_code = status.HTTP_200_OK
+           #print("Request data:", job_description)
            return {
                "message": "Job description submitted successfully.",
                "status": "success"
@@ -242,7 +244,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
       return {"error": str(e)}
 
 @app.post("/api/analyze")
-async def analyze_text(payload: InputData, response: Response):
+async def analyze_text(response: Response):
     """
     Send uploaded resume and job description to NLP API.
     
@@ -254,8 +256,13 @@ async def analyze_text(payload: InputData, response: Response):
       OutputData: standardized output data structure for fit score and feedback if succesful otherwise an error status message.
     """
     try:
-        resume_text = payload.resume_text.strip()
-        job_description = payload.job_description.strip()
+        session_id = next(iter(temp_storage), None)
+        if not session_id or "resume_text" not in temp_storage[session_id] or "job_description" not in temp_storage[session_id]:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"error": "Resume or job description not provided.", "status": "error"}
+        
+        resume_text = temp_storage[session_id]["resume_text"]
+        job_description = temp_storage[session_id]["job_description"]
 
         # Validating input
         InputData.is_valid(resume_text)
@@ -506,21 +513,21 @@ def calculate_fit_score(resume_text, job_description):
 
     # Extract required and preferred skills
     required_skills, preferred_skills = extract_skills(job_description)
-    print("required skills",required_skills)
-    print("preferred skills", preferred_skills)
+    #print("required skills",required_skills)
+    #print("preferred skills", preferred_skills)
 
     if not required_skills and not preferred_skills:
         return 0  # No skills to match
 
     # Tokenize resume
     resume_tokens = set(tokenize(resume_text))
-    print("resume tokens", resume_tokens)
+    #print("resume tokens", resume_tokens)
 
     # Calculate matches
     required_matches = required_skills.intersection(resume_tokens)
-    print("required_matches", required_matches)
+    #print("required_matches", required_matches)
     preferred_matches = preferred_skills.intersection(resume_tokens)
-    print("preferred_matches", preferred_matches)
+    #print("preferred_matches", preferred_matches)
 
     # Calculate weighted score
     required_score = (len(required_matches) / len(required_skills)) * 70 if required_skills else 0
@@ -596,31 +603,43 @@ async def fit_score_endpoint(response: Response):
         resume_text = temp_storage[session_id]["resume_text"]
         job_description = temp_storage[session_id]["job_description"]
 
-        fit_score = calculate_fit_score(resume_text, job_description)
-        feedback = generate_feedback(resume_text, job_description)
+        #print(resume_text)
+        #print(job_description)
+
+        InputData.is_valid(resume_text)
+        InputData.is_valid(job_description)
+        InputData.validate_length(resume_text)
+        InputData.validate_length(job_description)
+
+        analysis_result = await analyze_text(response)
+
+        if "error" in analysis_result:
+            return analysis_result
+
+
+        calculated_fit_score = calculate_fit_score(resume_text, job_description)
+        skill_feedback = generate_feedback(resume_text, job_description)
+
+        sorted_feedback = analysis_result["feedback"]
+        for suggestion in skill_feedback["suggestions"]:
+            sorted_feedback.append({
+                "category": "skills",
+                "text": suggestion
+            })
+
+        required_skills, preferred_skills = extract_skills(job_description)
+        resume_tokens = set(tokenize(resume_text))
+        matched_skills = list(resume_tokens.intersection(required_skills | preferred_skills))
 
         response.status_code = status.HTTP_200_OK
         return {
-            "message": "Fit score calculated successfully.",
-            "status": "success",
-            "fit_score": fit_score,
-            "matched_keywords": feedback["matched_keywords"],
-            "missing_keywords": feedback["missing_keywords"],
-            "suggestions": feedback["suggestions"]
+            "fit_score": calculated_fit_score,
+            "feedback": sorted_feedback,
+            "matched_skills": matched_skills,
+            "missing_keywords": skill_feedback["missing_keywords"],
+            "suggestions": skill_feedback["suggestions"]
         }
+
     except Exception as e:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"error": str(e), "status": "error"}
-
-openai.api_key = os.getenv('gpt_key')
-def test():
-  # Define the model and input
-  response = openai.chat.completions.create(
-    model= "gpt-4o-mini",
-    messages= [{ "role": "user", "content": "Say this is a test" }]
-  )
-
-  # Print the response
-  print(response)
-
-test()
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
