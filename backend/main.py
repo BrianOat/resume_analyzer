@@ -513,21 +513,21 @@ def calculate_fit_score(resume_text, job_description):
 
     # Extract required and preferred skills
     required_skills, preferred_skills = extract_skills(job_description)
-    print("required skills",required_skills)
-    print("preferred skills", preferred_skills)
+    #print("required skills",required_skills)
+    #print("preferred skills", preferred_skills)
 
     if not required_skills and not preferred_skills:
         return 0  # No skills to match
 
     # Tokenize resume
     resume_tokens = set(tokenize(resume_text))
-    print("resume tokens", resume_tokens)
+    #print("resume tokens", resume_tokens)
 
     # Calculate matches
     required_matches = required_skills.intersection(resume_tokens)
-    print("required_matches", required_matches)
+    #print("required_matches", required_matches)
     preferred_matches = preferred_skills.intersection(resume_tokens)
-    print("preferred_matches", preferred_matches)
+    #print("preferred_matches", preferred_matches)
 
     # Calculate weighted score
     required_score = (len(required_matches) / len(required_skills)) * 70 if required_skills else 0
@@ -603,8 +603,8 @@ async def fit_score_endpoint(response: Response):
         resume_text = temp_storage[session_id]["resume_text"]
         job_description = temp_storage[session_id]["job_description"]
 
-        print(resume_text)
-        print(job_description)
+        #print(resume_text)
+        #print(job_description)
 
         InputData.is_valid(resume_text)
         InputData.is_valid(job_description)
@@ -616,21 +616,14 @@ async def fit_score_endpoint(response: Response):
         if "error" in analysis_result:
             return analysis_result
 
-        feedback = analysis_result["feedback"]
 
         calculated_fit_score = calculate_fit_score(resume_text, job_description)
         skill_feedback = generate_feedback(resume_text, job_description)
 
-        sorted_feedback = []
-        for feedback_item in feedback:
-            sorted_feedback.append({
-                "category": feedback_item.get("category", "general"),
-                "text": feedback_item.get("text", "")
-            })
-
+        sorted_feedback = analysis_result["feedback"]
         for suggestion in skill_feedback["suggestions"]:
             sorted_feedback.append({
-                "category": "skills",  
+                "category": "skills",
                 "text": suggestion
             })
 

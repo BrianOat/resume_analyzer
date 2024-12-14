@@ -11,7 +11,7 @@ import "../../styles/dashboard/dashboard.css";
 // Define the structure for fit score data
 interface FitScoreData {
   fit_score: number;
-  matched_keywords: string[];
+  matched_skills: string[];
   feedback: { category: string, text: string }[]; // Include feedback data
 }
 
@@ -55,54 +55,73 @@ const Dashboard = () => {
   // Generate PDF
   const generatePDF = () => {
     const doc = new jsPDF();
-  
-    // Set equal wider margins for both left and right
-    const margin = 20;
+    const margin = 20; // Equal margins
     const pageWidth = doc.internal.pageSize.width;
-    const contentWidth = pageWidth - 2 * margin; // Adjust width for content
+    const pageHeight = doc.internal.pageSize.height;
+    const contentWidth = pageWidth - 2 * margin;
   
-    // Get the current date and time
+    let yOffset = margin; // Y position tracker
+  
+    const addPageIfNeeded = () => {
+      if (yOffset > pageHeight - margin) {
+        doc.addPage();
+        yOffset = margin; // Reset Y position for the new page
+      }
+    };
+  
+    // Get current date and time
     const currentDate = new Date();
     const formattedDate = currentDate.toLocaleString();
   
-    // Add the title with the date and time in parentheses
+    // Title
     doc.setFont("helvetica", "bold");
-    doc.text(`Resume Scanner Report (${formattedDate})`, margin, margin + 10);
-  
-    doc.setFont("helvetica", "normal");
-    let yOffset = margin + 20; // Start for Fit Score
+    doc.setFontSize(12); // Reduced font size
+    doc.text(`Resume Scanner Report (${formattedDate})`, margin, yOffset);
+    yOffset += 10;
+    addPageIfNeeded();
   
     // Fit Score
+    doc.setFont("helvetica", "normal");
     doc.text(`Fit Score: ${fitScoreData.fit_score}%`, margin, yOffset);
-    yOffset += 10; // Increment position for next section
+    yOffset += 10;
+    addPageIfNeeded();
   
-    // Matched Keywords Section
-    if (fitScoreData.matched_keywords && fitScoreData.matched_keywords.length > 0) {
+    // Matched Keywords
+    if (fitScoreData.matched_skills?.length > 0) {
       doc.setFont("helvetica", "bold");
       doc.text("Matched Keywords:", margin, yOffset);
-      yOffset += 10;
+      yOffset += 6;
   
       doc.setFont("helvetica", "normal");
-      fitScoreData.matched_keywords.forEach((keyword, index) => {
+      doc.setFontSize(10); // Smaller font size
+      fitScoreData.matched_skills.forEach((keyword) => {
+        addPageIfNeeded();
         doc.text(`- ${keyword}`, margin, yOffset);
-        yOffset += 10;
+        yOffset += 6;
       });
+      yOffset += 1;
     }
   
     // Feedback Section
-    if (fitScoreData.feedback && fitScoreData.feedback.length > 0) {
+    if (fitScoreData.feedback?.length > 0) {
       doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
       doc.text("Feedback:", margin, yOffset);
-      yOffset += 10;
+      yOffset += 6;
   
       doc.setFont("helvetica", "normal");
-      fitScoreData.feedback.forEach((item, index) => {
-        // Add spacing and wrap text consistently
+      doc.setFontSize(10);
+      fitScoreData.feedback.forEach((item) => {
+        addPageIfNeeded();
         doc.text(`${capitalizeCategory(item.category)}:`, margin, yOffset);
-        yOffset += 5;
+        yOffset += 6;
   
-        doc.text(item.text, margin + 5, yOffset, { maxWidth: contentWidth }); // Adjust width for content
-        yOffset += 15; // Increment y position after each feedback item for consistency
+        const splitText = doc.splitTextToSize(item.text, contentWidth); // Auto-wrap text
+        splitText.forEach((line: string) => {
+          addPageIfNeeded();
+          doc.text(line, margin + 5, yOffset);
+          yOffset += 6;
+        });
       });
     }
   
@@ -110,9 +129,6 @@ const Dashboard = () => {
     doc.save("Resume_Scanner_Report.pdf");
   };
   
-  
-  
-
   // Capitalize category for feedback
   const capitalizeCategory = (category: string) => {
     return category.charAt(0).toUpperCase() + category.slice(1);
@@ -133,7 +149,7 @@ const Dashboard = () => {
           {fitScoreData && 'fit_score' in fitScoreData && (
             <>
               <ResumeFitScore fitScore={fitScoreData.fit_score} />
-              <SkillsMatched skills={fitScoreData.matched_keywords} />
+              <SkillsMatched skills={fitScoreData.matched_skills} />
               <FeedbackFilter feedback={fitScoreData.feedback} />
               <button onClick={generatePDF} className="download-report-btn">
                 Download PDF Report
