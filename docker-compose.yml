@@ -41,7 +41,6 @@ services:
       context: ./frontend/
       dockerfile: src/tests/dockerfile
 
-
   frontend-e2e:
     profiles:
       - test
