@@ -2,24 +2,29 @@ import React, { useState, useEffect } from 'react';
 import "../../styles/dashboard/feedback_filter.css";
 
 interface FeedbackFilterProps {
-  suggestions: string[];
+  feedback: { category: string, text: string }[]; // Change from suggestions to feedback
 }
 
-const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ suggestions }) => {
+const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ feedback }) => {
   const [filter, setFilter] = useState<string>('all');
-  const [filteredFeedback, setFilteredFeedback] = useState<string[]>([]);
+  const [filteredFeedback, setFilteredFeedback] = useState<{ category: string, text: string }[]>([]);
 
   useEffect(() => {
-    if (Array.isArray(suggestions)) {
-      const filteredFeedback = suggestions.filter((item) =>
-        filter === 'all' ? true : item.includes(filter)
+    if (Array.isArray(feedback)) {
+      const filteredFeedback = feedback.filter((item) =>
+        filter === 'all' ? true : item.category.toLowerCase().includes(filter.toLowerCase())
       );
       setFilteredFeedback(filteredFeedback);
     }
-  }, [filter, suggestions]);
+  }, [filter, feedback]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilter(e.target.value);
+  };
+
+  // Function to capitalize the category
+  const capitalizeCategory = (category: string) => {
+    return category.charAt(0).toUpperCase() + category.slice(1);
   };
 
   return (
@@ -38,7 +43,9 @@ const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ suggestions }) => {
       {filteredFeedback && (
         <ul className="feedback-filter-list">
           {filteredFeedback.map((item, index) => (
-            <li key={index}>{item}</li>
+            <li key={index}>
+              <strong>{capitalizeCategory(item.category)}:</strong> {item.text}
+            </li>
           ))}
         </ul>
       )}
