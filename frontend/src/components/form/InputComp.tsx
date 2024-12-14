@@ -9,6 +9,7 @@ const ResumeJobInputForm: React.FC = () => {
     <div className="form-container">
       <h2>AI Powered Resume Scanner</h2>
       <p> Upload your resume and the job posting, and let our advanced analyzer unlock your potential!</p>
+      <p> Note: The job description must include an explicit 'Preferred Skills:' and 'Required Skills:' section, along with bullets under them.</p>
       <div className="form-content">
         <div className="file-input-container">
           <FileInput label="Upload Resume:" />
