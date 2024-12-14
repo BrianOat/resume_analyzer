@@ -21,7 +21,8 @@ temp_storage = {}
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://frontend-e2e:3000"
 ]
 
 app.add_middleware(
