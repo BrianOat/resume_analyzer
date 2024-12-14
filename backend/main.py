@@ -347,9 +347,9 @@ async def analyze_text(response: Response):
 
         fit_score = parsed_response['fit_score']
         feedback = parsed_response.get('feedback', [])
-        if not isinstance(feedback, list):
-           feedback = [feedback]
-        feedback = [str(item) for item in feedback]
+        #if not isinstance(feedback, list):
+         #  feedback = [feedback]
+        #feedback = [str(item) for item in feedback]
 
         # Validate output data structure
         if not isinstance(fit_score, int) or not isinstance(feedback, list):
@@ -628,7 +628,7 @@ async def fit_score_endpoint(response: Response):
         calculated_fit_score = calculate_fit_score(resume_text, job_description)
         skill_feedback = generate_feedback(resume_text, job_description)
 
-        sorted_feedback = analysis_result["feedback"]
+        sorted_feedback = analysis_result.feedback
         for suggestion in skill_feedback["suggestions"]:
             sorted_feedback.append({
                 "category": "skills",

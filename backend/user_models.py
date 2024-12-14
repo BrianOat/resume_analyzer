@@ -27,16 +27,16 @@ class InputData(BaseModel):
             raise ValueError("Input must be non-empty string.")
         return data
             
-        
+class FeedbackItem(BaseModel):
+    category:str
+    text:str
 class OutputData(BaseModel):
     fit_score: int 
-    feedback: list[str]
+    feedback: list[FeedbackItem]
     @staticmethod
     def validate_output(data):
         if not(0 <= data.fit_score <= 100):
             raise ValueError("Fit score must be between 0 and 100.")
-        if not isinstance(data.feedback, list) or not all(isinstance(item, str) for item in data.feedback):
-            raise ValueError("Feedback must be a list of strings.")
         return data
 
 class ErrorResponse(BaseModel):
