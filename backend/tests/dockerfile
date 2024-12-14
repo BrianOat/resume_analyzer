@@ -2,7 +2,7 @@ FROM python:3.10-slim
 WORKDIR /backend
 COPY ../requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir pytest pytest-dotenv
+RUN pip install --upgrade fastapi
 COPY .. /backend
 ENV PYTHONPATH=/backend
 CMD ["pytest", "tests", "--disable-warnings"]
