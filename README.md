@@ -42,6 +42,7 @@
     PYTHONPATH=.
     secret="superSecret"
     algorithm="HS256" 
+    gpt_key= <REPLACE THIS WITH KEY THAT HAS BEEN EMAILED TO GRADER/PROFF>
     ```
 
 - docker-compose build

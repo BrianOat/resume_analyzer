@@ -6,7 +6,6 @@ WORKDIR /e2e
 
 # Copy package.json and package-lock.json (or yarn.lock)
 COPY ../../package*.json ./  
-#Adjust the path relative to the location of dockerfile.e2e
 
 # Install dependencies
 RUN npm install

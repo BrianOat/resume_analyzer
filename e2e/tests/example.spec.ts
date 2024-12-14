@@ -88,7 +88,6 @@ test.describe('Login Page', () => {
     });
 });
 
-
 //File and Job Description Input Page
 test.describe('FileInput Component', () => {
     test.beforeEach(async ({ page }) => {
