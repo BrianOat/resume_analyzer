@@ -10,7 +10,7 @@ from database import models
 from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
-from openai import OpenAI
+import openai
 import json
 import re
 from collections import Counter
@@ -339,7 +339,10 @@ async def analyze_text(payload: InputData, response: Response):
             raise ValueError(f"Response is not in JSON format: {raw_response}")
 
         fit_score = parsed_response['fit_score']
-        feedback = parsed_response['feedback']
+        feedback = parsed_response.get('feedback', [])
+        if not isinstance(feedback, list):
+           feedback = [feedback]
+        feedback = [str(item) for item in feedback]
 
         # Validate output data structure
         if not isinstance(fit_score, int) or not isinstance(feedback, list):
@@ -352,11 +355,16 @@ async def analyze_text(payload: InputData, response: Response):
 
         # Map parsed data to OutputData (assuming you adjust OutputData accordingly)
         # If OutputData still expects just a list of strings, you'll need to update it.
-        output = {
-            "fit_score": fit_score,
-            "feedback": feedback
-        }
-
+        
+        output = OutputData(
+          fit_score = fit_score,
+          feedback = feedback
+        )
+        #print("Fit Score:", output.fit_score)
+        #print("Feedback:", output.feedback)
+        
+        #Validate output data
+        OutputData.validate_output(output)
         response.status_code = status.HTTP_200_OK
         return output
     except openai.APIError as e:
