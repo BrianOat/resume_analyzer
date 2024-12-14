@@ -1,0 +1,25 @@
+# Use a Node.js base image with Playwright support
+FROM mcr.microsoft.com/playwright:v1.28.0-focal as builder
+
+# Set working directory inside the container
+WORKDIR /e2e
+
+# Copy package.json and package-lock.json (or yarn.lock)
+COPY ../../package*.json ./  
+#Adjust the path relative to the location of dockerfile.e2e
+
+# Install dependencies
+RUN npm install
+
+# Copy the E2E test files from the local directory to the container
+COPY . ./  
+#Copy everything from the current directory (frontend/src/tests/e2e) to /e2e in the container
+
+# Install Playwright dependencies
+RUN npx playwright install --with-deps
+
+# Set the environment to test
+ENV NODE_ENV=test
+
+# Run Playwright tests
+CMD ["npx", "playwright", "test"]
