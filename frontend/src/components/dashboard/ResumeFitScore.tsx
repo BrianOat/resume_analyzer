@@ -1,23 +1,11 @@
 import ProgressBar from '../shared/ProgressBar';
 import "../../styles/dashboard/resume_fit_score.css";
-import { useState } from 'react';
-import axios from 'axios';
 
-const ResumeFitScore = () => {
-  const [fitScore, setFitScore] = useState(0);
+interface ResumeFitScoreProps {
+  fitScore: number;
+}
 
-  // useEffect(() => {
-  //   const getFitScore = async () => {
-  //     try {
-  //       const response = await axios.get(`/api/fit-score`);
-  //       setFitScore(response.data.fitScore);
-  //     } catch (error) {
-  //       console.error(error);
-  //     }
-  //   };
-  //   getFitScore();
-  // }, []);
-
+const ResumeFitScore: React.FC<ResumeFitScoreProps> = ({ fitScore }) => {
   return (
     <div className="resume-fit-score-container">
       <h2 className="resume-fit-score-title">Resume Fit Score</h2>

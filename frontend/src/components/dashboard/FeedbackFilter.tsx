@@ -1,57 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import "../../styles/dashboard/feedback_filter.css";
-import axios from 'axios';
 
-interface FeedbackItem {
-  category: string;
-  text: string;
+interface FeedbackFilterProps {
+  suggestions: string[];
 }
 
-interface FeedbackData {
-  fitScore: number;
-  feedback: FeedbackItem[];
-}
-
-const FeedbackFilter = () => {
+const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ suggestions }) => {
   const [filter, setFilter] = useState<string>('all');
-  const [feedback, setFeedback] = useState<FeedbackItem[]>([]);
-  const [filteredFeedback, setFilteredFeedback] = useState<FeedbackItem[]>([]);
-
-  // Dummy data for testing
-  const dummyData: FeedbackData = {
-    fitScore: 100,
-    feedback: [
-      { category: 'skills', text: 'random feedback 1' },
-      { category: 'experience', text: 'random feedback 1' },
-      { category: 'formatting', text: 'random feedback 1' },
-      { category: 'general', text: 'random feedback 1' },
-    ],
-  };
-
-  // API call (commented out for now)
-  // useEffect(() => {
-  //   const getFeedback = async () => {
-  //     try {
-  //       const response = await axios.get('/api/feedback');
-  //       const data: FeedbackData = response.data;
-  //       setFeedback(data.feedback);
-  //     } catch (error) {
-  //       console.error(error);
-  //     }
-  //   };
-  //   getFeedback();
-  // }, []);
+  const [filteredFeedback, setFilteredFeedback] = useState<string[]>([]);
 
   useEffect(() => {
-    setFeedback(dummyData.feedback);
-  }, []);
-
-  useEffect(() => {
-    const filteredFeedback = feedback.filter((item) =>
-      filter === 'all' ? true : item.category === filter
-    );
-    setFilteredFeedback(filteredFeedback);
-  }, [filter, feedback]);
+    if (Array.isArray(suggestions)) {
+      const filteredFeedback = suggestions.filter((item) =>
+        filter === 'all' ? true : item.includes(filter)
+      );
+      setFilteredFeedback(filteredFeedback);
+    }
+  }, [filter, suggestions]);
 
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setFilter(e.target.value);
@@ -59,7 +24,7 @@ const FeedbackFilter = () => {
 
   return (
     <div className="feedback-filter-container">
-      <h2 className="feedback-filter-header">Feedback</h2>
+      <h2 className="feedback-filter-header">Improvement Suggestions</h2>
       <select
         className="feedback-filter-select"
         value={filter}
@@ -69,13 +34,14 @@ const FeedbackFilter = () => {
         <option value="skills">Skills</option>
         <option value="experience">Experience</option>
         <option value="formatting">Formatting</option>
-        <option value="general">General</option>
       </select>
-      <ul className="feedback-filter-list">
-        {filteredFeedback.map((item, index) => (
-          <li key={index}>{item.text}</li>
-        ))}
-      </ul>
+      {filteredFeedback && (
+        <ul className="feedback-filter-list">
+          {filteredFeedback.map((item, index) => (
+            <li key={index}>{item}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };
