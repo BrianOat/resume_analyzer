@@ -59,7 +59,7 @@ const FeedbackFilter = () => {
 
   return (
     <div className="feedback-filter-container">
-      <h2 className="feedback-filter-header">Filter Feedback</h2>
+      <h2 className="feedback-filter-header">Feedback</h2>
       <select
         className="feedback-filter-select"
         value={filter}
