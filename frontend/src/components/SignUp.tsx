@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from "axios";
 import "../styles/styles.css"; // General styles
 import "../styles/form/signup.css"; // Page-specific styles
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // Fallback to localhost in dev
 
 
 const SignUp: React.FC = () => {
@@ -48,7 +49,7 @@ const SignUp: React.FC = () => {
 
         //Using Axios to send to backend
         try {
-            const response = await axios.post("http://localhost:8000/api/register", payload);
+            const response = await axios.post(`${backendUrl}/api/register`, payload);
             //console.log("Registration successful:", response.data);
             alert(response.data.message);
             setError("");

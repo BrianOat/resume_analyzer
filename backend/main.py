@@ -16,7 +16,7 @@ import re
 from collections import Counter
 from typing import List, Dict, Set
 import pdb
-
+import traceback
 # For tokenizing 
 STOP_WORDS = set([
     'a', 'an', 'the', 'and', 'or', 'but', 'if', 'while', 'with', 'is', 'are',
@@ -63,7 +63,8 @@ temp_storage = {}
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://frontend-e2e:3000"
 ]
 
 app.add_middleware(
@@ -119,7 +120,32 @@ async def register(payload: RegisterPayload, response: Response, db: Session = D
       db.commit()
       response.status_code = status.HTTP_201_CREATED
       return {"message": "User registered"}
-  
+
+@app.delete("/api/delete")
+async def delete(email: str, response: Response, db: Session = Depends(get_db)):
+    """
+      Delete account given the email. ONLY USED BY TEST SUITES
+      
+      Args:
+        email (str): The email to delete
+        response (Response): The FastAPI Response object for setting the status code
+        db (Session): A database connection?
+      Returns:
+        dict: A JSON response with a status message.
+      """
+    try:
+        user_to_delete = db.query(models.User).filter_by(email=email).first()
+        if not user_to_delete:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": "User not found"}
+        db.delete(user_to_delete)
+        db.commit()
+        response.status_code = status.HTTP_200_OK
+        return {"message": "User deleted"}
+    except ValueError as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": "User deletion failed"}
+        
 @app.post("/api/login")
 async def login(payload: LoginPayload, response: Response, db: Session = Depends(get_db)):
     """
@@ -199,6 +225,7 @@ async def resume_upload(file: UploadFile, response: Response):
             "session_id": session_id
         }
     except ValueError as e:
+        print(str(e))
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": f"Error processing PDF: {str(e)}", "status": "error"}
       
@@ -231,7 +258,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         else:
           response.status_code = status.HTTP_400_BAD_REQUEST
           return {
-            "error": "No resume uploaded.",
+            "error": "No job description uploaded.",
             "status": "error"
           }
       else:
@@ -500,7 +527,6 @@ def extract_skills(job_description):
 
     return required_skills, preferred_skills
 
-
 def calculate_fit_score(resume_text, job_description):
     """
     Calculates a fit score based on the match between resume text and job description.
@@ -611,9 +637,6 @@ async def fit_score_endpoint(response: Response):
         resume_text = temp_storage[session_id]["resume_text"]
         job_description = temp_storage[session_id]["job_description"]
 
-        #print(resume_text)
-        #print(job_description)
-
         InputData.is_valid(resume_text)
         InputData.is_valid(job_description)
         InputData.validate_length(resume_text)
@@ -650,4 +673,5 @@ async def fit_score_endpoint(response: Response):
 
     except Exception as e:
         response.status_code = status.HTTP_400_BAD_REQUEST
+        print(traceback.format_exc())
         return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}

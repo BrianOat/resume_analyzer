@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
 import "../../styles/styles.css"; // Import global styles
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000'; // Fallback to localhost in dev
 
 interface JobInputProps {
   label: string;
@@ -20,7 +21,7 @@ const JobInput: React.FC<JobInputProps> = ({ label }) => {
   const handleSubmit = async () => {
     try {
       const response = await axios.post(
-        "http://localhost:8000/api/job-description",
+        `${backendUrl}/api/job-description`,
         {
           job_description: text,
         }

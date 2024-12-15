@@ -42,6 +42,7 @@
     PYTHONPATH=.
     secret="superSecret"
     algorithm="HS256" 
+    gpt_key= <REPLACE THIS WITH KEY THAT HAS BEEN EMAILED TO GRADER/PROFF>
     ```
 
 - docker-compose build
@@ -57,3 +58,9 @@
 ### Run frontend tests
 - docker-compose build frontend-tests
 - docker-compose up frontend-tests
+
+### Run e2e tests
+    #PLEASE REMAKE BACKEND CONTAINER (stop container, delete, build up) 
+    - docker-compose build backend
+- docker-compose build e2e-tests
+- docker-compose up e2e-tests
