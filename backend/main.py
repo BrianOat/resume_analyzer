@@ -10,11 +10,15 @@ from database import models
 from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
-from openai import OpenAI
+import openai 
 import json
 import re
 from collections import Counter
 from typing import List, Dict, Set
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
 
 # For tokenizing 
 STOP_WORDS = set([
