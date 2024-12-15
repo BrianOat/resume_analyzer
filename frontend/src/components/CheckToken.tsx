@@ -5,7 +5,6 @@ const CheckToken = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log('REACT_APP_SKIP_TOKEN_CHECK:', process.env.REACT_APP_SKIP_TOKEN_CHECK);
     if (process.env.REACT_APP_SKIP_TOKEN_CHECK === "true") {
       console.log("Skipping token check in testing environment.");
       return;

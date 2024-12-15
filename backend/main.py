@@ -16,7 +16,7 @@ import re
 from collections import Counter
 from typing import List, Dict, Set
 import pdb
-
+import traceback
 # For tokenizing 
 STOP_WORDS = set([
     'a', 'an', 'the', 'and', 'or', 'but', 'if', 'while', 'with', 'is', 'are',
@@ -248,7 +248,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         else:
           response.status_code = status.HTTP_400_BAD_REQUEST
           return {
-            "error": "No resume uploaded.",
+            "error": "No job description uploaded.",
             "status": "error"
           }
       else:
@@ -628,9 +628,6 @@ async def fit_score_endpoint(response: Response):
         resume_text = temp_storage[session_id]["resume_text"]
         job_description = temp_storage[session_id]["job_description"]
 
-        #print(resume_text)
-        #print(job_description)
-
         InputData.is_valid(resume_text)
         InputData.is_valid(job_description)
         InputData.validate_length(resume_text)
@@ -667,4 +664,5 @@ async def fit_score_endpoint(response: Response):
 
     except Exception as e:
         response.status_code = status.HTTP_400_BAD_REQUEST
+        print(traceback.format_exc())
         return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}

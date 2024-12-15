@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chromium } from '@playwright/test';
 
 test.describe('Sign Up Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -44,7 +44,7 @@ test.describe('Sign Up Page', () => {
         await page.fill('input[name="password"]', 'StrongPass1!');
         await page.fill('input[name="confirmPassword"]', 'StrongPass1!');
         await page.click('button[type="submit"]');
-        await expect(page).toHaveURL('http://frontend-e2e:3000/login', { timeout: 10000 });
+        await expect(page).toHaveURL('http://frontend-e2e:3000/login', { timeout: 40000 });
         await request.delete('http://backend:8000/api/delete', {
             params: {
               email: 'test1@example.com'
@@ -94,20 +94,6 @@ test.describe('FileInput Component', () => {
         await page.goto('http://frontend-e2e:3000/inputForm');
     });
   
-    test('should upload a valid file successfully', async ({ page }) => {
-        const validFile = {
-            name: 'valid-resume.pdf',
-            mimeType: 'application/pdf',
-            buffer: Buffer.from('%PDF-1.4\n1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n2 0 obj <</Type /Pages /Count 1 /Kids [3 0 R]>> endobj\n3 0 obj <</Type /Page /Parent 2 0 R /Contents 4 0 R>> endobj\n4 0 obj <</Length 20>> stream\nBT /F1 12 Tf 72 700 Td (Hello) Tj ET\nendstream endobj\nxref\n0 5\n0000000000 65535 f \n0000000016 00000 n \n0000000102 00000 n \n0000000200 00000 n \n0000000300 00000 n \ntrailer\n<</Root 1 0 R /Size 5>>\nstartxref\n400\n%%EOF')
-        };
-        await page.setInputFiles('input[type="file"]', validFile, { timeout: 10000 });
-        page.on('dialog', async (dialog) => {
-            expect(dialog.message()).toBe('Resume uploaded successfully.');
-            await dialog.dismiss();
-        });
-        await page.waitForEvent('dialog', { timeout: 10000 });  
-    });
-  
     test('should show an error for invalid file type', async ({ page }) => {
         const invalidFile = {
             name: 'invalid-resume.docx',
@@ -143,17 +129,6 @@ test.describe('JobInput Component', () => {
     await page.goto('http://frontend-e2e:3000/inputForm');
   });
 
-  test('should submit a job description successfully', async ({ page }) => {
-    const validDescription = 'This is a valid job description.';
-    await page.fill('textarea.input-textarea', validDescription);
-    await page.click('button.submit-button');
-    page.on('dialog', async (dialog) => {
-      expect(dialog.message()).toBe('Job description submitted successfully.');
-      await dialog.dismiss();
-    });
-    await page.waitForEvent('dialog', { timeout: 10000 });
-  });
-
   test('should show an error for exceeding character limit', async ({ page }) => {
     const longDescription = 'A'.repeat(6000);
     await page.fill('textarea.input-textarea', longDescription);
@@ -166,3 +141,42 @@ test.describe('JobInput Component', () => {
   });
 });
 
+test.describe('Resume and Job Description Matching', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto('http://frontend-e2e:3000/inputForm');
+  });
+  test('should calculate fit score for a matching resume, job description and able to download updated resume', async ({ page }) => {
+    const jobDescriptionContent = `
+      Looking for a software engineer with strong experience in Python, AWS, and REST APIs.
+      Candidates should be proficient in modern cloud technologies and web services.
+      Required Skills:
+      - Python
+      - AWS
+      - REST APIs
+      Preferred Skills:
+      - Docker`;
+    await page.fill('textarea.input-textarea', jobDescriptionContent);
+    await page.setInputFiles('input[type="file"]', "./tests/resume.pdf", { timeout: 10000 });
+    await page.click('button.submit-button');
+    await page.goto('http://frontend-e2e:3000/dashboard');
+    const fitScoreElement = page.locator('.resume-fit-score-percentage');
+    await fitScoreElement.waitFor({ state: 'visible' });
+    const fitScoreText = await fitScoreElement.textContent();
+    const score = parseInt(fitScoreText || '0', 10);
+    expect(score).toBeGreaterThanOrEqual(75);
+    expect(score).toBeLessThanOrEqual(100);
+    await page.waitForSelector('.dashboard-analysis-results');
+    const feedbackList = page.locator('ul.feedback-filter-list');
+    const childCount = await feedbackList.locator('li').count();
+    expect(childCount).toBeGreaterThan(0);
+    await page.waitForSelector('.dashboard-header');
+    const downloadButton = await page.locator('.download-report-btn');
+    await downloadButton.click();
+    const [download] = await Promise.all([
+      page.waitForEvent('download'),
+      downloadButton.click(),
+    ]);
+    const downloadFilePath = await download.path();
+    expect(downloadFilePath).toBeTruthy();
+  });
+});

@@ -7,6 +7,7 @@ import ResumeView from './ResumeView';
 import FeedbackFilter from './FeedbackFilter';
 import CheckToken from '../CheckToken';
 import "../../styles/dashboard/dashboard.css";
+const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 // Define the structure for fit score data
 interface FitScoreData {
@@ -26,7 +27,7 @@ const Dashboard = () => {
   useEffect(() => {
     const getFitScoreData = async () => {
       try {
-        const response = await axios.post('http://localhost:8000/api/fit-score');
+        const response = await axios.post(`${backendUrl}/api/fit-score`);
         setFitScoreData(response.data);
         localStorage.setItem('fitScoreData', JSON.stringify(response.data));
         console.log('Fetched fit score data:', response.data);
