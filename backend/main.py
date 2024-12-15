@@ -123,6 +123,16 @@ async def register(payload: RegisterPayload, response: Response, db: Session = D
 
 @app.delete("/api/delete")
 async def delete(email: str, response: Response, db: Session = Depends(get_db)):
+    """
+      Delete account given the email. ONLY USED BY TEST SUITES
+      
+      Args:
+        email (str): The email to delete
+        response (Response): The FastAPI Response object for setting the status code
+        db (Session): A database connection?
+      Returns:
+        dict: A JSON response with a status message.
+      """
     try:
         user_to_delete = db.query(models.User).filter_by(email=email).first()
         if not user_to_delete:
@@ -516,7 +526,6 @@ def extract_skills(job_description):
                         preferred_skills.add(skill_transformed)
 
     return required_skills, preferred_skills
-
 
 def calculate_fit_score(resume_text, job_description):
     """

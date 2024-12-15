@@ -60,5 +60,7 @@
 - docker-compose up frontend-tests
 
 ### Run e2e tests
+    #PLEASE REMAKE BACKEND CONTAINER (stop container, delete, build up) 
+    - docker-compose build backend
 - docker-compose build e2e-tests
 - docker-compose up e2e-tests
