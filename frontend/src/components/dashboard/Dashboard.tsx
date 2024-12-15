@@ -56,8 +56,8 @@ const Dashboard = () => {
   const generatePDF = () => {
     const doc = new jsPDF();
     const margin = 20; // Equal margins
-    const pageWidth = doc.internal.pageSize.width;
-    const pageHeight = doc.internal.pageSize.height;
+    const pageWidth = 210;
+    const pageHeight = 297;
     const contentWidth = pageWidth - 2 * margin;
   
     let yOffset = margin; // Y position tracker

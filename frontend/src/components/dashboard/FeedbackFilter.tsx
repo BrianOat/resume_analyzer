@@ -40,7 +40,7 @@ const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ feedback }) => {
         <option value="experience">Experience</option>
         <option value="formatting">Formatting</option>
       </select>
-      {filteredFeedback && (
+      {filteredFeedback && filteredFeedback.length > 0 ? (
         <ul className="feedback-filter-list">
           {filteredFeedback.map((item, index) => (
             <li key={index}>
@@ -48,6 +48,8 @@ const FeedbackFilter: React.FC<FeedbackFilterProps> = ({ feedback }) => {
             </li>
           ))}
         </ul>
+      ) : (
+        <p>No feedback available.</p>
       )}
     </div>
   );
