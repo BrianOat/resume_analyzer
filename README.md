@@ -37,7 +37,8 @@
 ---
 
 ## Instructions for Setting Up the Project Locally
-- create .env file under /resume_scanner and include the following in the .env file
+- clone git repository
+- create .env file under /resume_scanner (root) and include the following in the .env file
     ```
     PYTHONPATH=.
     secret="superSecret"
@@ -45,10 +46,15 @@
     gpt_key= <REPLACE THIS WITH KEY THAT HAS BEEN EMAILED TO GRADER/PROFF>
     ```
 
+## Option 1 Docker Build
 - docker-compose build
 - docker-compose up
 - **View Backend at http://localhost:8000**
 - **View Frontend at http://localhost:3000**
+
+## Option 2 .env Build
+- enable a virtual environment
+- within /backend and /frontend follow the respective "readme.md"
 
 ## Run unit tests
 ### Run backend tests
@@ -60,10 +66,35 @@
 - docker-compose up frontend-tests
 
 ### Run e2e tests
-    #PLEASE REMAKE BACKEND CONTAINER (stop container, delete, build up) 
+    #PLEASE REMAKE BACKEND CONTAINER IF ALREADY USED (stop container, delete, build up) 
     - docker-compose build backend
 - docker-compose build e2e-tests
 - docker-compose up e2e-tests
 
-### View API Documentation
-**View documentation via Swagger UI at http://localhost:8000/docs/**
+## Usage Instructions (README.md):
+
+### Application overview and key features.
+- Login in 
+- Register if no account
+- Unable to access other pages if not logged in
+- Auto-redirect to dashboard
+- Go to Input tab to input PDF file of resume and text job description
+- Go to dashboard to view analysis
+- Can download resume analysis PDF
+
+Step-by-step guide for:
+
+- Registering and logging in.
+    - On app startup, user will be in Login screen
+    - If no account please sign up for one
+    - Login with account details
+
+- Uploading a resume and submitting a job description.
+    - After logging in, navigate to input form
+    - Input PDF of your resume
+    - Input job description with specific text headed by "preferred skills" and "required skills"
+
+- Viewing analysis results and downloading a report.
+    - Navigate to dashboard
+    - Let load and view results
+    - Download button at bottom of dashboard 
