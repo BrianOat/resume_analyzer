@@ -19,3 +19,6 @@
 ### Run frontend tests
 - docker-compose build frontend-tests
 - docker-compose up frontend-tests
+
+### View API Documentation
+**View documentation via Swagger UI at http://localhost:8000/docs/**

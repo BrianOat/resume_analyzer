@@ -695,3 +695,74 @@ def test_generate_feedback_empty_inputs():
     feedback = generate_feedback(resume_text, job_description)
     assert feedback["missing_keywords"] == [], "Both resume and job description empty should yield no missing keywords."
     assert feedback["suggestions"] == [], "Both resume and job description empty should yield no suggestions."
+
+""" def test_fit_score_endpoint_valid_payload():
+    with patch("app.calculate_fit_score", return_value=95) as mock_fit_score, \
+         patch("app.generate_feedback", return_value={"suggestions": [], "missing_keywords": []}) as mock_feedback, \
+         patch("app.analyze_text", return_value={"feedback": []}) as mock_analysis:
+        
+        temp_storage = {
+            "test_session": {
+                "resume_text": "Experienced Software Engineer skilled in Python, AWS, and REST APIs.",
+                "job_description": "Required: Python, AWS, REST APIs; Preferred: Docker, CI/CD"
+            }
+        }
+
+        response = client.post("/api/fit-score")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["fit_score"] == 95
+        assert data["feedback"] == []
+        assert data["matched_skills"] == ["python", "aws", "rest_apis"]
+
+        mock_fit_score.assert_called_once()
+        mock_feedback.assert_called_once()
+        mock_analysis.assert_called_once() """
+
+def test_fit_score_endpoint_missing_resume():
+    temp_storage = {
+        "test_session": {
+            "job_description": "Required: Python, AWS, REST APIs; Preferred: Docker, CI/CD"
+        }
+    }
+
+    response = client.post("/api/fit-score")
+    assert response.status_code == 400
+    data = response.json()
+    assert data["error"] == "Resume or job description not provided."
+
+def test_fit_score_endpoint_missing_job_description():
+    temp_storage = {
+        "test_session": {
+            "resume_text": "Experienced Software Engineer skilled in Python, AWS, and REST APIs."
+        }
+    }
+
+    response = client.post("/api/fit-score")
+    assert response.status_code == 400
+    data = response.json()
+    assert data["error"] == "Resume or job description not provided."
+
+def test_fit_score_endpoint_empty_inputs():
+    temp_storage = {
+        "test_session": {
+            "resume_text": "",
+            "job_description": ""
+        }
+    }
+
+    response = client.post("/api/fit-score")
+    assert response.status_code == 400
+
+def test_fit_score_endpoint_oversized_inputs():
+    large_text = "a" * 100001 
+
+    temp_storage = {
+        "test_session": {
+            "resume_text": large_text,
+            "job_description": large_text
+        }
+    }
+
+    response = client.post("/api/fit-score")
+    assert response.status_code == 400
