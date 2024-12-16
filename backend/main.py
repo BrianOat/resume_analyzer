@@ -277,10 +277,9 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
 @app.post("/api/analyze")
 async def analyze_text(response: Response):
     """
-    Send uploaded resume and job description to NLP API.
+    Send uploaded resume and job description from temporary storage to NLP API.
     
     Args:
-      payload (InputData): The payload containing resume text, job description in standardized input data structure
       response (Response): The FastAPI Response object for setting the status code
 
     Returns:

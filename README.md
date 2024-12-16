@@ -64,3 +64,6 @@
     - docker-compose build backend
 - docker-compose build e2e-tests
 - docker-compose up e2e-tests
+
+### View API Documentation
+**View documentation via Swagger UI at http://localhost:8000/docs/**
