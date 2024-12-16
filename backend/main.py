@@ -17,6 +17,10 @@ from collections import Counter
 from typing import List, Dict, Set
 import pdb
 import traceback
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
+
 # For tokenizing 
 STOP_WORDS = set([
     'a', 'an', 'the', 'and', 'or', 'but', 'if', 'while', 'with', 'is', 'are',
