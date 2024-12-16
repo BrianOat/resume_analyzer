@@ -1,11 +1,14 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jwtDecode } from 'jwt-decode';
-
 const CheckToken = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (process.env.REACT_APP_SKIP_TOKEN_CHECK === "true") {
+      console.log("Skipping token check in testing environment.");
+      return;
+    }
     const token = localStorage.getItem('token');
     
     if (token != null) {

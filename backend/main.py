@@ -10,15 +10,16 @@ from database import models
 from user_models import RegisterPayload, LoginPayload, JobDescriptionPayload, InputData, OutputData
 from PyPDF2 import PdfReader
 import uuid
-import openai 
+import openai
 import json
 import re
 from collections import Counter
 from typing import List, Dict, Set
+import pdb
+import traceback
 from dotenv import load_dotenv
 
-# Load environment variables from the .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
+load_dotenv()  # Load environment variables from .env file
 
 # For tokenizing 
 STOP_WORDS = set([
@@ -66,7 +67,8 @@ temp_storage = {}
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://frontend-e2e:3000"
 ]
 
 app.add_middleware(
@@ -122,7 +124,32 @@ async def register(payload: RegisterPayload, response: Response, db: Session = D
       db.commit()
       response.status_code = status.HTTP_201_CREATED
       return {"message": "User registered"}
-  
+
+@app.delete("/api/delete")
+async def delete(email: str, response: Response, db: Session = Depends(get_db)):
+    """
+      Delete account given the email. ONLY USED BY TEST SUITES
+      
+      Args:
+        email (str): The email to delete
+        response (Response): The FastAPI Response object for setting the status code
+        db (Session): A database connection?
+      Returns:
+        dict: A JSON response with a status message.
+      """
+    try:
+        user_to_delete = db.query(models.User).filter_by(email=email).first()
+        if not user_to_delete:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"message": "User not found"}
+        db.delete(user_to_delete)
+        db.commit()
+        response.status_code = status.HTTP_200_OK
+        return {"message": "User deleted"}
+    except ValueError as e:
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        return {"message": "User deletion failed"}
+        
 @app.post("/api/login")
 async def login(payload: LoginPayload, response: Response, db: Session = Depends(get_db)):
     """
@@ -193,7 +220,7 @@ async def resume_upload(file: UploadFile, response: Response):
         #Create a session ID to store data
         session_id = str(uuid.uuid4())
         temp_storage[session_id] = {"resume_text": text}
-
+        #print("Request data:", text)
         response.status_code = status.HTTP_200_OK
         return {
             "message": "Resume uploaded successfully.",
@@ -202,6 +229,7 @@ async def resume_upload(file: UploadFile, response: Response):
             "session_id": session_id
         }
     except ValueError as e:
+        print(str(e))
         response.status_code = status.HTTP_400_BAD_REQUEST
         return {"error": f"Error processing PDF: {str(e)}", "status": "error"}
       
@@ -226,6 +254,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         if session_id:
            temp_storage[session_id]["job_description"] = job_description
            response.status_code = status.HTTP_200_OK
+           #print("Request data:", job_description)
            return {
                "message": "Job description submitted successfully.",
                "status": "success"
@@ -233,7 +262,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
         else:
           response.status_code = status.HTTP_400_BAD_REQUEST
           return {
-            "error": "No resume uploaded.",
+            "error": "No job description uploaded.",
             "status": "error"
           }
       else:
@@ -246,7 +275,7 @@ async def job_description_upload(payload: JobDescriptionPayload, response: Respo
       return {"error": str(e)}
 
 @app.post("/api/analyze")
-async def analyze_text(payload: InputData, response: Response):
+async def analyze_text(response: Response):
     """
     Send uploaded resume and job description to NLP API.
     
@@ -258,8 +287,13 @@ async def analyze_text(payload: InputData, response: Response):
       OutputData: standardized output data structure for fit score and feedback if succesful otherwise an error status message.
     """
     try:
-        resume_text = payload.resume_text.strip()
-        job_description = payload.job_description.strip()
+        session_id = next(iter(temp_storage), None)
+        if not session_id or "resume_text" not in temp_storage[session_id] or "job_description" not in temp_storage[session_id]:
+            response.status_code = status.HTTP_400_BAD_REQUEST
+            return {"error": "Resume or job description not provided.", "status": "error"}
+        
+        resume_text = temp_storage[session_id]["resume_text"]
+        job_description = temp_storage[session_id]["job_description"]
 
         # Validating input
         InputData.is_valid(resume_text)
@@ -343,7 +377,10 @@ async def analyze_text(payload: InputData, response: Response):
             raise ValueError(f"Response is not in JSON format: {raw_response}")
 
         fit_score = parsed_response['fit_score']
-        feedback = parsed_response['feedback']
+        feedback = parsed_response.get('feedback', [])
+        #if not isinstance(feedback, list):
+         #  feedback = [feedback]
+        #feedback = [str(item) for item in feedback]
 
         # Validate output data structure
         if not isinstance(fit_score, int) or not isinstance(feedback, list):
@@ -356,11 +393,16 @@ async def analyze_text(payload: InputData, response: Response):
 
         # Map parsed data to OutputData (assuming you adjust OutputData accordingly)
         # If OutputData still expects just a list of strings, you'll need to update it.
-        output = {
-            "fit_score": fit_score,
-            "feedback": feedback
-        }
-
+        
+        output = OutputData(
+          fit_score = fit_score,
+          feedback = feedback
+        )
+        #print("Fit Score:", output.fit_score)
+        #print("Feedback:", output.feedback)
+        
+        #Validate output data
+        OutputData.validate_output(output)
         response.status_code = status.HTTP_200_OK
         return output
     except openai.APIError as e:
@@ -489,7 +531,6 @@ def extract_skills(job_description):
 
     return required_skills, preferred_skills
 
-
 def calculate_fit_score(resume_text, job_description):
     """
     Calculates a fit score based on the match between resume text and job description.
@@ -510,21 +551,21 @@ def calculate_fit_score(resume_text, job_description):
 
     # Extract required and preferred skills
     required_skills, preferred_skills = extract_skills(job_description)
-    print("required skills",required_skills)
-    print("preferred skills", preferred_skills)
+    #print("required skills",required_skills)
+    #print("preferred skills", preferred_skills)
 
     if not required_skills and not preferred_skills:
         return 0  # No skills to match
 
     # Tokenize resume
     resume_tokens = set(tokenize(resume_text))
-    print("resume tokens", resume_tokens)
+    #print("resume tokens", resume_tokens)
 
     # Calculate matches
     required_matches = required_skills.intersection(resume_tokens)
-    print("required_matches", required_matches)
+    #print("required_matches", required_matches)
     preferred_matches = preferred_skills.intersection(resume_tokens)
-    print("preferred_matches", preferred_matches)
+    #print("preferred_matches", preferred_matches)
 
     # Calculate weighted score
     required_score = (len(required_matches) / len(required_skills)) * 70 if required_skills else 0
@@ -600,31 +641,41 @@ async def fit_score_endpoint(response: Response):
         resume_text = temp_storage[session_id]["resume_text"]
         job_description = temp_storage[session_id]["job_description"]
 
-        fit_score = calculate_fit_score(resume_text, job_description)
-        feedback = generate_feedback(resume_text, job_description)
+        InputData.is_valid(resume_text)
+        InputData.is_valid(job_description)
+        InputData.validate_length(resume_text)
+        InputData.validate_length(job_description)
+
+        analysis_result = await analyze_text(response)
+
+        if "error" in analysis_result:
+            return analysis_result
+
+
+        calculated_fit_score = calculate_fit_score(resume_text, job_description)
+        skill_feedback = generate_feedback(resume_text, job_description)
+
+        sorted_feedback = analysis_result.feedback
+        for suggestion in skill_feedback["suggestions"]:
+            sorted_feedback.append({
+                "category": "skills",
+                "text": suggestion
+            })
+
+        required_skills, preferred_skills = extract_skills(job_description)
+        resume_tokens = set(tokenize(resume_text))
+        matched_skills = list(resume_tokens.intersection(required_skills | preferred_skills))
 
         response.status_code = status.HTTP_200_OK
         return {
-            "message": "Fit score calculated successfully.",
-            "status": "success",
-            "fit_score": fit_score,
-            "matched_keywords": feedback["matched_keywords"],
-            "missing_keywords": feedback["missing_keywords"],
-            "suggestions": feedback["suggestions"]
+            "fit_score": calculated_fit_score,
+            "feedback": sorted_feedback,
+            "matched_skills": matched_skills,
+            "missing_keywords": skill_feedback["missing_keywords"],
+            "suggestions": skill_feedback["suggestions"]
         }
+
     except Exception as e:
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        return {"error": str(e), "status": "error"}
-
-openai.api_key = os.getenv('gpt_key')
-def test():
-  # Define the model and input
-  response = openai.chat.completions.create(
-    model= "gpt-4o-mini",
-    messages= [{ "role": "user", "content": "Say this is a test" }]
-  )
-
-  # Print the response
-  print(response)
-
-test()
+        response.status_code = status.HTTP_400_BAD_REQUEST
+        print(traceback.format_exc())
+        return {"error": f"Unable to process the request. Please try again later: {str(e)}", "status": "error"}
