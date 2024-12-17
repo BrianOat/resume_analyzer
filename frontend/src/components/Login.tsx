@@ -27,7 +27,7 @@ const Login: React.FC = () => {
             console.log(response.data.token);
             localStorage.setItem('token', response.data.token);
             setError("");
-            navigate("/dashboard")
+            navigate("/inputForm")
         } catch (err) {
             alert("Failed to login. Please try again.");
             setError("Login Failed");
